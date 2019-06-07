@@ -1,0 +1,4 @@
+FROM anapsix/alpine-java:latest
+
+RUN apk update && apk upgrade && \
+    apk add --no-cache bash git

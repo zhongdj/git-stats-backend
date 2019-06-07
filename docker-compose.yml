@@ -1,0 +1,10 @@
+version: "3.0"
+services:
+
+  backend:
+    image: git-stats-backend:1.0-SNAPSHOT
+    ports:
+      - "9000:9000"
+    volumes:
+      - ~/.ssh:/root/.ssh
+      - ~/.git-stats-tasks:/root/.tasks
