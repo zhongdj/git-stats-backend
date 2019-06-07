@@ -3,7 +3,7 @@ package net.imadz.git.stats.services
 import java.time.LocalDate.parse
 import java.time.Period
 
-import net.imadz.git.stats.{AppError, ShellCommandExecError}
+import net.imadz.git.stats.{ AppError, ShellCommandExecError }
 
 import scala.language.postfixOps
 import scala.sys.process._

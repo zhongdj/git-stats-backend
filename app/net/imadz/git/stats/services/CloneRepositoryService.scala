@@ -4,7 +4,7 @@ import java.io.File
 import java.time.LocalDate
 
 import sys.process._
-import net.imadz.git.stats.{AppError, FileSystemError, ShellCommandExecError}
+import net.imadz.git.stats.{ AppError, FileSystemError, ShellCommandExecError }
 
 import scala.language.postfixOps
 
