@@ -12,7 +12,7 @@ CREATE TABLE `productivity_data` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=10000 DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
 
-SELECT * FROM `productivity_data`;
+ALTER TABLE `productivity_data` ADD UNIQUE INDEX `UNI_INX_D_P_D_M` (`day`, `project`, `developer`, `metric_name`);
 -- !Downs
 
 DROP TABLE  `productivity_data` ;

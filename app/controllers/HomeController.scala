@@ -53,7 +53,8 @@ class HomeController @Inject() (cc: ControllerComponents, clone: CloneRepository
       .map(toProductivityDataRow)
       .map(rows => {
         rows.foreach(r => {
-          val query = Tables.ProductivityData += r
+          //          val query = Tables.ProductivityData += r
+          val query = Tables.ProductivityData.insertOrUpdate(r)
           dbConfig.db.run(query)
         })
         rows.mkString(",")
