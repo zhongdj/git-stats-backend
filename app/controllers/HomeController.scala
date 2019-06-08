@@ -1,6 +1,7 @@
 package controllers
 
 import java.sql.Date
+import java.text.SimpleDateFormat
 import java.time.{ LocalDate, Period }
 
 import akka.http.scaladsl.model.DateTime
@@ -26,8 +27,9 @@ class HomeController @Inject() (cc: ControllerComponents, clone: CloneRepository
 
   def dateOf(m: Metric): java.sql.Date = {
     println(m.day)
-    val period = LocalDate.parse(m.day)
-    new java.sql.Date(period.getYear - 1000, period.getMonthValue - 1, period.getDayOfMonth - 1)
+    val formatter = new SimpleDateFormat("yyyy-MM-dd")
+    val time = formatter.parse(m.day).getTime
+    new java.sql.Date(time)
   }
 
   def toProductivityDataRow: List[Metric] => List[Tables.ProductivityDataRow] = xs =>
@@ -53,7 +55,6 @@ class HomeController @Inject() (cc: ControllerComponents, clone: CloneRepository
       .map(toProductivityDataRow)
       .map(rows => {
         rows.foreach(r => {
-          //          val query = Tables.ProductivityData += r
           val query = Tables.ProductivityData.insertOrUpdate(r)
           dbConfig.db.run(query)
         })

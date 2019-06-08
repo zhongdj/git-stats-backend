@@ -1,5 +1,6 @@
 package net.imadz.git.stats.services
 
+import java.text.SimpleDateFormat
 import java.time.LocalDate.parse
 import java.time.Period
 
@@ -21,6 +22,7 @@ class InsertionStatsService extends Constants {
   }
 
   private def range(fromStr: String, toStr: String) = {
+
     val from = parse(fromStr)
     val to = parse(toStr)
     val days = Period.between(from, to).getDays
