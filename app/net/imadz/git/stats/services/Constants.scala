@@ -1,5 +1,7 @@
 package net.imadz.git.stats.services
 
+import java.text.SimpleDateFormat
+
 trait Constants {
   val root = "/root/.tasks"
   val r = """.*/(.*).git""".r
@@ -11,4 +13,6 @@ trait Constants {
   def projectPath(taskId: Long, repositoryUrl: String): String = {
     s"${root}/${taskId}/${projectOf(repositoryUrl)}"
   }
+  val formatter = new SimpleDateFormat("yyyy-MM-dd")
+
 }

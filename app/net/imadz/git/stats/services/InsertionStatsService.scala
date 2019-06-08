@@ -5,6 +5,7 @@ import java.time.LocalDate.parse
 import java.time.Period
 
 import net.imadz.git.stats.{ AppError, ShellCommandExecError }
+import org.joda.time.{ DateTime, Days }
 
 import scala.language.postfixOps
 import scala.sys.process._
@@ -12,6 +13,7 @@ import scala.sys.process._
 class InsertionStatsService extends Constants {
 
   def exec(project: String, fromStr: String, toStr: String): Either[AppError, String] = {
+    println(s"InsertionStatsService: $fromStr, $toStr")
     range(fromStr, toStr)
       .map(stat(_, project))
       .foldLeft[Either[AppError, String]](Right(""))(accumulate)
@@ -23,10 +25,13 @@ class InsertionStatsService extends Constants {
 
   private def range(fromStr: String, toStr: String) = {
 
-    val from = parse(fromStr)
-    val to = parse(toStr)
-    val days = Period.between(from, to).getDays
-    val dates = (0 to days).reverse.map(days => to.minusDays(days)).map(_.toString)
+    val toLocalDate = parse(toStr)
+    val from = formatter.parse(fromStr)
+    val to = formatter.parse(toStr)
+    val days = Days.daysBetween(new DateTime(from.getTime), new DateTime(to.getTime)).getDays()
+    println(fromStr, toStr, from, to, days)
+
+    val dates = (0 to days).reverse.map(days => toLocalDate.minusDays(days)).map(_.toString)
     dates
   }
 
@@ -37,7 +42,8 @@ class InsertionStatsService extends Constants {
 
   private def stat(date: String, p: String): Either[AppError, String] = {
     try {
-      Right(s"/opt/docker/stats-inserts.sh ${p} ${date} ${date}" !!)
+      println(s"/opt/docker/stats-inserts.sh $p $date $date")
+      Right(s"/opt/docker/stats-inserts.sh $p $date $date" !!)
     } catch {
       case e: Throwable => Left(ShellCommandExecError(s"stats-inserts failed with ${errorMessage(e)}"))
     }
