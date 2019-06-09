@@ -1,7 +1,5 @@
 package net.imadz.git.stats.workers
 
-import java.text.SimpleDateFormat
-
 import akka.actor.{Actor, ActorRef, PoisonPill, Props, ReceiveTimeout}
 import net.imadz.git.stats.models.{Metric, SegmentParser, Tables}
 import net.imadz.git.stats.services._
@@ -99,7 +97,7 @@ case class GitRepositoryUpdateJobWorker(taskId: Int, repo: services.GitRepositor
     new java.sql.Date(time)
   }
 
-  def toMetricRow: List[Metric] => List[Tables.MetricRow] = xs =>
+  private def toMetricRow: List[Metric] => List[Tables.MetricRow] = xs =>
     xs.map(x => Tables.MetricRow(0, dateOf(x), Some(x.project), Some(x.developer), Some(x.metric), Some(x.value)))
 
   override def receive: Receive = {
@@ -113,16 +111,16 @@ case class GitRepositoryUpdateJobWorker(taskId: Int, repo: services.GitRepositor
   import dbConfig.profile.api._
 
   private def analysis = {
-    val result = statService.exec(projectPath(taskId, repo.repositoryUrl), fromDay, toDay).map(s => SegmentParser.parse(s.split("""\n""").toList))
+    statService.exec(projectPath(taskId, repo.repositoryUrl), fromDay, toDay)
+      .map(s => SegmentParser.parse(s.split("""\n""").toList))
       .map(toMetricRow)
       .map(rows => {
         rows.foreach(r => {
-          val query = Tables.Metric.insertOrUpdate(r)
-          dbConfig.db.run(query)
+          dbConfig.db.run(Tables.Metric.insertOrUpdate(r))
         })
         rows.mkString(",")
       })
-    result
+
   }
 }
 
