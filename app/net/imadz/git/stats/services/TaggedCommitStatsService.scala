@@ -27,6 +27,7 @@ class TaggedCommitStatsService @Inject() (protected val dbConfigProvider: Databa
   }
 
   private def lsTreeObjects(dir: String): Either[AppError, List[String]] = try {
+    println(s"/opt/docker/git-ls-tree.sh $dir")
     Right(s"/opt/docker/git-ls-tree.sh $dir" !!)
       .map(_.split("""\n""").toList)
   } catch {
@@ -34,6 +35,7 @@ class TaggedCommitStatsService @Inject() (protected val dbConfigProvider: Databa
   }
 
   private def readCommits(dir: String): String => Either[AppError, List[CommitOnFile]] = file => try {
+    println(s"/opt/docker/git-file-log.sh $dir $file")
     Right(s"/opt/docker/git-file-log.sh $dir $file" !!)
       .map(parseCommitOnFile(file))
   } catch {
