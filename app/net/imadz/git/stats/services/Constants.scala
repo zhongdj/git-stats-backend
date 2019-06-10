@@ -14,5 +14,8 @@ trait Constants {
     s"${root}/${taskId}/${projectOf(repositoryUrl)}"
   }
   val formatter = new SimpleDateFormat("yyyy-MM-dd")
-
+  def dateOf(m: String): java.sql.Date = {
+    val time = formatter.parse(m).getTime
+    new java.sql.Date(time)
+  }
 }

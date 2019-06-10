@@ -1,23 +1,24 @@
 package net.imadz.git.stats.workers
 
-import akka.actor.{Actor, ActorRef, PoisonPill, Props, ReceiveTimeout}
-import net.imadz.git.stats.models.{Metric, SegmentParser, Tables}
+import akka.actor.{ Actor, ActorRef, PoisonPill, Props, ReceiveTimeout }
+import net.imadz.git.stats.models.{ Metric, SegmentParser, Tables }
 import net.imadz.git.stats.services._
-import net.imadz.git.stats.workers.GitRepositoryUpdateJobMaster.{Done, Progress, Update}
-import net.imadz.git.stats.{AppError, MD5, services}
-import play.api.db.slick.{DatabaseConfigProvider, HasDatabaseConfigProvider}
+import net.imadz.git.stats.workers.GitRepositoryUpdateJobMaster.{ Done, Progress, Update }
+import net.imadz.git.stats.{ AppError, MD5, services }
+import play.api.db.slick.{ DatabaseConfigProvider, HasDatabaseConfigProvider }
 import slick.jdbc.JdbcProfile
 import slick.lifted.TableQuery
 
-import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
+import scala.concurrent.{ ExecutionContext, Future }
 import scala.language.postfixOps
 
 class GitRepositoryUpdateJobMaster(taskId: Int, req: CreateTaskReq,
-                                   clone: CloneRepositoryService,
-                                   stat: InsertionStatsService,
-                                   protected val dbConfigProvider: DatabaseConfigProvider,
-                                   observer: Option[ActorRef])(implicit ec: ExecutionContext) extends Actor with HasDatabaseConfigProvider[JdbcProfile] with MD5 {
+    clone: CloneRepositoryService,
+    stat: InsertionStatsService,
+    taggedCommit: TaggedCommitStatsService,
+    protected val dbConfigProvider: DatabaseConfigProvider,
+    observer: Option[ActorRef])(implicit ec: ExecutionContext) extends Actor with HasDatabaseConfigProvider[JdbcProfile] with MD5 {
 
   override def receive: Receive = idle
 
@@ -27,7 +28,7 @@ class GitRepositoryUpdateJobMaster(taskId: Int, req: CreateTaskReq,
   private lazy val workers: Map[GitRepository, ActorRef] =
     req.repositories.zip(req.repositories
       .map(r => context.actorOf(
-        GitRepositoryUpdateJobWorker.props(taskId, r, clone, stat, dbConfigProvider, req.fromDay, req.toDay.get),
+        GitRepositoryUpdateJobWorker.props(taskId, r, clone, stat, taggedCommit, dbConfigProvider, req.fromDay, req.toDay.get),
 
         s"$taskId-${r.repositoryUrl}-${r.branch}".replaceAll("""/""", "@"))
       )).toMap
@@ -44,7 +45,7 @@ class GitRepositoryUpdateJobMaster(taskId: Int, req: CreateTaskReq,
   }
 
   def updating: Receive = {
-    case d@Done(repo, _) =>
+    case d @ Done(repo, _) =>
       busyWorkers -= repo
       observer.foreach(_ ! d)
       if (busyWorkers.isEmpty) {
@@ -65,12 +66,12 @@ class GitRepositoryUpdateJobMaster(taskId: Int, req: CreateTaskReq,
 
 object GitRepositoryUpdateJobMaster {
   def props(taskId: Int, createTaskReq: CreateTaskReq,
-            clone: CloneRepositoryService, stat: InsertionStatsService, dbConfigProvider: DatabaseConfigProvider)(implicit ec: ExecutionContext): Props =
-    Props(new GitRepositoryUpdateJobMaster(taskId, createTaskReq, clone, stat, dbConfigProvider, None))
+    clone: CloneRepositoryService, stat: InsertionStatsService, taggedCommit: TaggedCommitStatsService, dbConfigProvider: DatabaseConfigProvider)(implicit ec: ExecutionContext): Props =
+    Props(new GitRepositoryUpdateJobMaster(taskId, createTaskReq, clone, stat, taggedCommit, dbConfigProvider, None))
 
   def props(taskId: Int, createTaskReq: CreateTaskReq,
-            clone: CloneRepositoryService, stat: InsertionStatsService, dbConfigProvider: DatabaseConfigProvider, observer: ActorRef)(implicit ec: ExecutionContext): Props =
-    Props(new GitRepositoryUpdateJobMaster(taskId, createTaskReq, clone, stat, dbConfigProvider, Some(observer)))
+    clone: CloneRepositoryService, stat: InsertionStatsService, taggedCommit: TaggedCommitStatsService, dbConfigProvider: DatabaseConfigProvider, observer: ActorRef)(implicit ec: ExecutionContext): Props =
+    Props(new GitRepositoryUpdateJobMaster(taskId, createTaskReq, clone, stat, taggedCommit, dbConfigProvider, Some(observer)))
 
   trait Cmd
 
@@ -83,10 +84,11 @@ object GitRepositoryUpdateJobMaster {
 }
 
 case class GitRepositoryUpdateJobWorker(taskId: Int, repo: services.GitRepository,
-                                        cloneService: CloneRepositoryService,
-                                        statService: InsertionStatsService,
-                                        protected val dbConfigProvider: DatabaseConfigProvider,
-                                        fromDay: String, toDay: String)(implicit ec: ExecutionContext) extends Actor
+    cloneService: CloneRepositoryService,
+    statService: InsertionStatsService,
+    taggedCommit: TaggedCommitStatsService,
+    protected val dbConfigProvider: DatabaseConfigProvider,
+    fromDay: String, toDay: String)(implicit ec: ExecutionContext) extends Actor
   with Constants with HasDatabaseConfigProvider[JdbcProfile] {
 
   val data = TableQuery[Tables.Metric]
@@ -104,7 +106,9 @@ case class GitRepositoryUpdateJobWorker(taskId: Int, repo: services.GitRepositor
     case Update => cloneService.exec(taskId, repo.repositoryUrl)
       .foreach { message =>
         context.parent ! Progress(message)
-        context.parent ! Done(repo, analysis)
+        analysis.fold(
+          e => context.parent ! Done(repo, Left(e)),
+          f => f.foreach(context.parent ! _))
       }
   }
 
@@ -115,11 +119,18 @@ case class GitRepositoryUpdateJobWorker(taskId: Int, repo: services.GitRepositor
       .map(s => SegmentParser.parse(s.split("""\n""").toList))
       .map(toMetricRow)
       .map(rows => {
-        rows.foreach(r => {
-          dbConfig.db.run(Tables.Metric.insertOrUpdate(r))
-        })
-        rows.mkString(",")
-      })
+        Future.sequence(rows.map(r => dbConfig.db.run(Tables.Metric.insertOrUpdate(r))))
+          .map(_ => rows.mkString(","))
+      }).map { futureStr =>
+        futureStr.flatMap { str =>
+          val eventualStr2 = taggedCommit.exec(projectPath(taskId, repo.repositoryUrl))
+            .fold(
+              e => Future.successful(s"Failed to tag commit with: ${e.message}"),
+              s => s
+            )
+          eventualStr2.map(str2 => str + "\n" + str2)
+        }
+      }
 
   }
 }
@@ -127,10 +138,11 @@ case class GitRepositoryUpdateJobWorker(taskId: Int, repo: services.GitRepositor
 object GitRepositoryUpdateJobWorker {
 
   def props(taskId: Int, r: services.GitRepository,
-            clone: CloneRepositoryService,
-            stat: InsertionStatsService,
-            dbConfigProvider: DatabaseConfigProvider,
-            fromDay: String, toDay: String)(implicit ec: ExecutionContext): Props =
-    Props(new GitRepositoryUpdateJobWorker(taskId, r, clone, stat, dbConfigProvider, fromDay, toDay))
+    clone: CloneRepositoryService,
+    stat: InsertionStatsService,
+    taggedCommit: TaggedCommitStatsService,
+    dbConfigProvider: DatabaseConfigProvider,
+    fromDay: String, toDay: String)(implicit ec: ExecutionContext): Props =
+    Props(new GitRepositoryUpdateJobWorker(taskId, r, clone, stat, taggedCommit, dbConfigProvider, fromDay, toDay))
 
 }

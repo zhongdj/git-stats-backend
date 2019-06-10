@@ -1,8 +1,6 @@
 package net.imadz.git.stats.services
 
-import java.text.SimpleDateFormat
 import java.time.LocalDate.parse
-import java.time.Period
 
 import net.imadz.git.stats.{ AppError, ShellCommandExecError }
 import org.joda.time.{ DateTime, Days }

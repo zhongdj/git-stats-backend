@@ -1,6 +1,5 @@
 package controllers
 
-import java.text.SimpleDateFormat
 import java.util.Date
 
 import javax.inject._
@@ -27,13 +26,8 @@ class HomeController @Inject() (
 
   val data = TableQuery[Tables.Metric]
 
-  def dateOf(m: Metric): java.sql.Date = {
-    println(m.day)
-    val time = formatter.parse(m.day).getTime
-    new java.sql.Date(time)
-  }
   def toMetricRow: List[Metric] => List[Tables.MetricRow] = xs =>
-    xs.map(x => Tables.MetricRow(0, dateOf(x), Some(x.project), Some(x.developer), Some(x.metric), Some(x.value)))
+    xs.map(x => Tables.MetricRow(0, dateOf(x.day), Some(x.project), Some(x.developer), Some(x.metric), Some(x.value)))
 
   import dbConfig.profile.api._
 
