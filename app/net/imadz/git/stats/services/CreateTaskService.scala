@@ -1,6 +1,7 @@
 package net.imadz.git.stats.services
 
-import akka.actor.ActorSystem
+import akka.actor.{ ActorIdentity, ActorSystem, Identify }
+import akka.util.Timeout
 import com.google.inject.Inject
 import net.imadz.git.stats.MD5
 import net.imadz.git.stats.models.Tables._
@@ -10,6 +11,7 @@ import play.api.db.slick.{ DatabaseConfigProvider, HasDatabaseConfigProvider }
 import slick.jdbc.JdbcProfile
 
 import scala.concurrent.{ ExecutionContext, Future }
+import scala.language.postfixOps
 
 class CreateTaskService @Inject() (protected val dbConfigProvider: DatabaseConfigProvider, actorSystem: ActorSystem,
     clone: CloneRepositoryService, stats: InsertionStatsService, taggedCommit: TaggedCommitStatsService)(implicit ec: ExecutionContext)
@@ -26,14 +28,29 @@ class CreateTaskService @Inject() (protected val dbConfigProvider: DatabaseConfi
         .headOption
         .map(r => r.map(row => Future.successful(row.id)))
     ).flatMap(_.getOrElse(createTask(repositories, startDate, endDate)))
-      .map { id =>
-        createMaster(repositories, startDate, endDate, id) ! Update
-        id
+      .flatMap { id =>
+        createMaster(repositories, startDate, endDate, id)
+          .map(_ ! Update)
+          .map(_ => id)
       }
       .map(CreateTaskResp.apply)
   }
 
+  import akka.pattern.ask
+
+  import scala.concurrent.duration._
+
   private def createMaster(repositories: List[GitRepository], startDate: String, endDate: String, id: Int) = {
+    implicit val duration: Timeout = Timeout(5 seconds)
+    (actorSystem.actorSelection(id.toString) ? Identify)
+      .mapTo[ActorIdentity]
+      .map(_.getActorRef.orElseGet(() =>
+        instantiateMaster(repositories, startDate, endDate, id))
+      )
+      .recover { case _ => instantiateMaster(repositories, startDate, endDate, id) }
+  }
+
+  private def instantiateMaster(repositories: List[GitRepository], startDate: String, endDate: String, id: Int) = {
     actorSystem.actorOf(GitRepositoryUpdateJobMaster.props(id, CreateTaskReq(repositories, startDate, Some(endDate)), clone, stats, taggedCommit, dbConfigProvider), id.toString)
   }
 

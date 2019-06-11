@@ -1,6 +1,6 @@
 package net.imadz.git.stats.workers
 
-import akka.actor.{ Actor, ActorRef, PoisonPill, Props, ReceiveTimeout }
+import akka.actor.{ Actor, ActorRef, PoisonPill, Props, ReceiveTimeout, Terminated }
 import net.imadz.git.stats.models.{ Metric, SegmentParser, Tables }
 import net.imadz.git.stats.services._
 import net.imadz.git.stats.workers.GitRepositoryUpdateJobMaster.{ Done, Progress, Update }
@@ -22,22 +22,24 @@ class GitRepositoryUpdateJobMaster(taskId: Int, req: CreateTaskReq,
 
   override def receive: Receive = idle
 
-  var busyWorkers = Set.empty[GitRepository]
   var idleRounds = 0
 
-  private lazy val workers: Map[GitRepository, ActorRef] =
-    req.repositories.zip(req.repositories
-      .map(r => context.actorOf(
-        GitRepositoryUpdateJobWorker.props(taskId, r, clone, stat, taggedCommit, dbConfigProvider, req.fromDay, req.toDay.get),
+  private var workers: Set[ActorRef] = req.repositories.map(createWorker).toSet
 
-        s"$taskId-${r.repositoryUrl}-${r.branch}".replaceAll("""/""", "@"))
-      )).toMap
+  private def createWorker: GitRepository => ActorRef = r => {
+    val worker = context.actorOf(GitRepositoryUpdateJobWorker.props(taskId, r, clone, stat, taggedCommit, dbConfigProvider, req.fromDay, req.toDay.get), workerName(r))
+    context.watch(worker)
+    worker
+  }
+
+  private def workerName(r: GitRepository) = {
+    s"$taskId-${r.repositoryUrl}-${r.branch}".replaceAll("""/""", "@")
+  }
 
   def idle: Receive = {
     case Update =>
       context.become(updating)
-      busyWorkers = req.repositories.toSet
-      workers.values.foreach(_ ! Update)
+      workers.foreach(_ ! Update)
     case ReceiveTimeout =>
       println(s"being idle for $idleRounds minutes")
       if (idleRounds <= 2) idleRounds += 1
@@ -46,12 +48,7 @@ class GitRepositoryUpdateJobMaster(taskId: Int, req: CreateTaskReq,
 
   def updating: Receive = {
     case d @ Done(repo, _) =>
-      busyWorkers -= repo
       observer.foreach(_ ! d)
-      if (busyWorkers.isEmpty) {
-        context.become(idle)
-        context.setReceiveTimeout(5 minute)
-      }
     case p: Progress =>
       observer.foreach(_ ! p)
     case Update =>
@@ -60,7 +57,12 @@ class GitRepositoryUpdateJobMaster(taskId: Int, req: CreateTaskReq,
       context.become(idle)
       context.setReceiveTimeout(Duration.Undefined)
       self ! Update
-
+    case Terminated(worker) =>
+      workers -= worker
+      if (workers.isEmpty) {
+        context.become(idle)
+        context.setReceiveTimeout(5 minute)
+      }
   }
 }
 
@@ -102,14 +104,17 @@ case class GitRepositoryUpdateJobWorker(taskId: Int, repo: services.GitRepositor
   private def toMetricRow: List[Metric] => List[Tables.MetricRow] = xs =>
     xs.map(x => Tables.MetricRow(0, dateOf(x), Some(x.project), Some(x.developer), Some(x.metric), Some(x.value)))
 
+  val parent = context.parent
+
   override def receive: Receive = {
-    case Update => cloneService.exec(taskId, repo.repositoryUrl)
-      .foreach { message =>
-        context.parent ! Progress(message)
-        analysis.fold(
-          e => context.parent ! Done(repo, Left(e)),
-          f => f.foreach(context.parent ! _))
-      }
+    case Update =>
+      cloneService.exec(taskId, repo.repositoryUrl)
+        .map { message =>
+          parent ! Progress(message)
+          analysis.fold(
+            e => parent ! Done(repo, Left(e)),
+            f => f.foreach(message => parent ! Done(repo, Right(message))))
+        }.map(_ => context.stop(self))
   }
 
   import dbConfig.profile.api._
@@ -123,7 +128,7 @@ case class GitRepositoryUpdateJobWorker(taskId: Int, repo: services.GitRepositor
           .map(_ => rows.mkString(","))
       }).map { futureStr =>
         futureStr.flatMap { str =>
-          println("tagging commit started: ")
+          println(s"tagging: ${projectPath(taskId, repo.repositoryUrl)} commit started: ")
           val eventualStr2 = taggedCommit.exec(projectPath(taskId, repo.repositoryUrl))
             .fold(
               e => Future.successful(s"Failed to tag commit with: ${e.message}"),
