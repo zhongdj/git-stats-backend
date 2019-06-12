@@ -1,11 +1,11 @@
 package net.imadz.git.stats.services
 
 import com.google.inject.Inject
-import net.imadz.git.stats.{AppError, ShellCommandExecError}
-import play.api.db.slick.{DatabaseConfigProvider, HasDatabaseConfigProvider}
+import net.imadz.git.stats.{ AppError, ShellCommandExecError }
+import play.api.db.slick.{ DatabaseConfigProvider, HasDatabaseConfigProvider }
 import slick.jdbc.JdbcProfile
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ ExecutionContext, Future }
 import scala.language.postfixOps
 import scala.sys.process._
 
@@ -13,7 +13,7 @@ case class CommitOnFile(id: String, file: String, developer: String, date: Strin
 
 case class TaggedCommit(tag: String, commit: CommitOnFile)
 
-class TaggedCommitStatsService @Inject()(protected val dbConfigProvider: DatabaseConfigProvider)(implicit ec: ExecutionContext)
+class TaggedCommitStatsService @Inject() (protected val dbConfigProvider: DatabaseConfigProvider)(implicit ec: ExecutionContext)
   extends Traversal with Constants with HasDatabaseConfigProvider[JdbcProfile] {
 
   def exec(dir: String): Either[AppError, Future[String]] = {
@@ -68,7 +68,7 @@ class TaggedCommitStatsService @Inject()(protected val dbConfigProvider: Databas
   }
 
   private def srcMain: CommitOnFile => Boolean = commit =>
-    commit.file.contains("src/main") || commit.file.contains("app/cmd")
+    commit.file.contains("src/main") || commit.file.contains("app/")
 
   private def infrastructure: CommitOnFile => Option[String] = commit =>
     if (commit.file.contains("infrastructure/")) Some("infrastructure") else None

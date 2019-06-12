@@ -42,11 +42,9 @@ class CreateTaskService @Inject() (protected val dbConfigProvider: DatabaseConfi
 
   private def createMaster(repositories: List[GitRepository], startDate: String, endDate: String, id: Int) = {
     implicit val duration: Timeout = Timeout(5 seconds)
-    (actorSystem.actorSelection(id.toString) ? Identify)
+    (actorSystem.actorSelection("akka://application/user/" + id.toString) ? Identify(1L))
       .mapTo[ActorIdentity]
-      .map(_.getActorRef.orElseGet(() =>
-        instantiateMaster(repositories, startDate, endDate, id))
-      )
+      .map(identity => identity.getActorRef.get())
       .recover { case _ => instantiateMaster(repositories, startDate, endDate, id) }
   }
 

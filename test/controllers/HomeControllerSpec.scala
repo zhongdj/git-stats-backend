@@ -10,7 +10,6 @@ import play.api.test.Helpers._
  * You can mock out a whole application including requests, plugins etc.
  *
  * For more information, see https://www.playframework.com/documentation/latest/ScalaTestingWithScalaTest
- */
 class HomeControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injecting {
 
   "HomeController GET" should {
@@ -42,4 +41,4 @@ class HomeControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injecting
       contentAsString(home) must include ("Welcome to Play")
     }
   }
-}
+}*/

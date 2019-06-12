@@ -1,6 +1,7 @@
 package net.imadz.git.stats.workers
 
-import akka.actor.{ Actor, ActorRef, PoisonPill, Props, ReceiveTimeout, Terminated }
+import akka.actor.SupervisorStrategy.Stop
+import akka.actor.{ Actor, ActorRef, OneForOneStrategy, PoisonPill, Props, ReceiveTimeout, SupervisorStrategy, Terminated }
 import net.imadz.git.stats.models.{ Metric, SegmentParser, Tables }
 import net.imadz.git.stats.services._
 import net.imadz.git.stats.workers.GitRepositoryUpdateJobMaster.{ Done, Progress, Update }
@@ -58,11 +59,18 @@ class GitRepositoryUpdateJobMaster(taskId: Int, req: CreateTaskReq,
       context.setReceiveTimeout(Duration.Undefined)
       self ! Update
     case Terminated(worker) =>
+      println(worker.path)
       workers -= worker
       if (workers.isEmpty) {
         context.become(idle)
         context.setReceiveTimeout(5 minute)
       }
+  }
+
+  override def supervisorStrategy: SupervisorStrategy = OneForOneStrategy() {
+    case t: Throwable =>
+      t.printStackTrace()
+      Stop
   }
 }
 
