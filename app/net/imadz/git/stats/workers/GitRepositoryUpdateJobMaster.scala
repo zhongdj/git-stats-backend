@@ -1,6 +1,6 @@
 package net.imadz.git.stats.workers
 
-import akka.actor.SupervisorStrategy.Stop
+import akka.actor.SupervisorStrategy.Restart
 import akka.actor.{ Actor, ActorRef, OneForOneStrategy, PoisonPill, Props, ReceiveTimeout, SupervisorStrategy, Terminated }
 import net.imadz.git.stats.models.{ Metric, SegmentParser, Tables }
 import net.imadz.git.stats.services._
@@ -48,7 +48,9 @@ class GitRepositoryUpdateJobMaster(taskId: Int, req: CreateTaskReq,
   }
 
   def updating: Receive = {
-    case d @ Done(repo, _) =>
+    case d @ Done(repo, message) =>
+      println(message)
+      context.stop(sender())
       observer.foreach(_ ! d)
     case p: Progress =>
       observer.foreach(_ ! p)
@@ -69,8 +71,9 @@ class GitRepositoryUpdateJobMaster(taskId: Int, req: CreateTaskReq,
 
   override def supervisorStrategy: SupervisorStrategy = OneForOneStrategy() {
     case t: Throwable =>
+      println(s"came across error with: ${t.getMessage}")
       t.printStackTrace()
-      Stop
+      Restart
   }
 }
 
@@ -109,8 +112,8 @@ case class GitRepositoryUpdateJobWorker(taskId: Int, repo: services.GitRepositor
     new java.sql.Date(time)
   }
 
-  private def toMetricRow: List[Metric] => List[Tables.MetricRow] = xs =>
-    xs.map(x => Tables.MetricRow(0, dateOf(x), Some(x.project), Some(x.developer), Some(x.metric), Some(x.value)))
+  private def toMetricRow(taskId: Long): List[Metric] => List[Tables.MetricRow] = xs =>
+    xs.map(x => Tables.MetricRow(0, taskId, dateOf(x), Some(x.project), Some(x.developer), Some(x.metric), Some(x.value)))
 
   val parent = context.parent
 
@@ -122,7 +125,7 @@ case class GitRepositoryUpdateJobWorker(taskId: Int, repo: services.GitRepositor
           analysis.fold(
             e => parent ! Done(repo, Left(e)),
             f => f.foreach(message => parent ! Done(repo, Right(message))))
-        }.map(_ => context.stop(self))
+        }
   }
 
   import dbConfig.profile.api._
@@ -130,10 +133,15 @@ case class GitRepositoryUpdateJobWorker(taskId: Int, repo: services.GitRepositor
   private def analysis = {
     statService.exec(projectPath(taskId, repo.repositoryUrl), fromDay, toDay)
       .map(s => SegmentParser.parse(s.split("""\n""").toList))
-      .map(toMetricRow)
+      .map(toMetricRow(taskId))
       .map(rows => {
-        Future.sequence(rows.map(r => dbConfig.db.run(Tables.Metric.insertOrUpdate(r))))
+        dbConfig.db.run(Tables.Metric ++= rows)
           .map(_ => rows.mkString(","))
+          .recover {
+            case e =>
+              e.printStackTrace()
+              rows.mkString(",")
+          }
       }).map { futureStr =>
         futureStr.flatMap { str =>
           println(s"tagging: ${projectPath(taskId, repo.repositoryUrl)} commit started: ")

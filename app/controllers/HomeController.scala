@@ -26,8 +26,8 @@ class HomeController @Inject() (
 
   val data = TableQuery[Tables.Metric]
 
-  def toMetricRow: List[Metric] => List[Tables.MetricRow] = xs =>
-    xs.map(x => Tables.MetricRow(0, dateOf(x.day), Some(x.project), Some(x.developer), Some(x.metric), Some(x.value)))
+  def toMetricRow(taskId: Long): List[Metric] => List[Tables.MetricRow] = xs =>
+    xs.map(x => Tables.MetricRow(0, taskId, dateOf(x.day), Some(x.project), Some(x.developer), Some(x.metric), Some(x.value)))
 
   import dbConfig.profile.api._
 
@@ -46,7 +46,7 @@ class HomeController @Inject() (
       + stat
       .exec(projectPath(711L, l), "2019-06-01", "2019-06-08")
       .map(s => SegmentParser.parse(s.split("""\n""").toList))
-      .map(toMetricRow)
+      .map(toMetricRow(711L))
       .map(rows => {
         rows.foreach(r => {
           val query = Tables.Metric.insertOrUpdate(r)
