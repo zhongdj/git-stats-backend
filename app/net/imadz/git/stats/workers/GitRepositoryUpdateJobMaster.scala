@@ -135,7 +135,7 @@ case class GitRepositoryUpdateJobWorker(taskId: Int, repo: services.GitRepositor
       .map(s => SegmentParser.parse(s.split("""\n""").toList))
       .map(toMetricRow(taskId))
       .map(rows => {
-        dbConfig.db.run(Tables.Metric ++= rows)
+        dbConfig.db.run(DBIO.sequence(rows.map(Tables.Metric.insertOrUpdate)))
           .map(_ => rows.mkString(","))
           .recover {
             case e =>
