@@ -145,7 +145,7 @@ case class GitRepositoryUpdateJobWorker(taskId: Int, repo: services.GitRepositor
       }).map { futureStr =>
         futureStr.flatMap { str =>
           println(s"tagging: ${projectPath(taskId, repo.repositoryUrl)} commit started: ")
-          val eventualStr2 = taggedCommit.exec(projectPath(taskId, repo.repositoryUrl))
+          val eventualStr2 = taggedCommit.exec(projectPath(taskId, repo.repositoryUrl), repo.profile)
             .fold(
               e => Future.successful(s"Failed to tag commit with: ${e.message}"),
               s => s
