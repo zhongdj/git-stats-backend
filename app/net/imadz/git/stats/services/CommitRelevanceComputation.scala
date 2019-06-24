@@ -12,6 +12,7 @@ case class Relevance(x: Keyed, y: Keyed, degree: Int)
 
 trait CommitRelevanceComputation {
 
-  def categorize[T <: Keyed]: List[T] => List[Set[Classified[T]]] = xs => List(xs.map(Classified(_, 1)).toSet)
+  def categorize[T <: Keyed]: List[T] => Set[Set[Classified[T]]] = xs =>
+    xs.groupBy(_.key).values.toList.map(_.map(Classified(_, 1)).toSet).toSet
 
 }
