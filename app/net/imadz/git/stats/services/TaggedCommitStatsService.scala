@@ -65,17 +65,26 @@ class TaggedCommitStatsService @Inject()(protected val dbConfigProvider: Databas
       .map(_ => xs)
   }
 
-  private val javaOnionTagger: Tagger = taggerOf("conf/tags/java.onion.profile.properties")
-  val builtInTaggers: Map[String, Tagger] = Map(
-    "java.onion" -> javaOnionTagger,
-    "golang" -> taggerOf("conf/tags/golang.profile.properties"),
-  )
+  private def tags(profile: Option[String]): CommitOnFile => List[String] = commit =>
+    allTaggers(profile.getOrElse("java.onion"))(commit.file)
 
-  lazy val customTaggers: Map[String, Tagger] = new File("/root/tags")
+  private lazy val allTaggers = (builtInTaggers ++ customTaggers).withDefaultValue(javaOnionTagger)
+  private val javaOnionTagger: Tagger = taggerOf("conf/tags/java.onion.profile.properties")
+  private val golangTagger: Tagger = taggerOf("conf/tags/golang.profile.properties")
+  private val builtInTaggers: Map[String, Tagger] = Map(
+    "java.onion" -> javaOnionTagger,
+    "golang" -> golangTagger,
+  )
+  private lazy val customTaggers: Map[String, Tagger] = new File("/root/tags")
     .listFiles()
     .toList
     .map(file => profileName(file.getName) -> taggerOf(file))
     .toMap
+
+
+
+  private def srcMain: CommitOnFile => Boolean = commit =>
+    commit.file.contains("src/main") || commit.file.contains("app/")
 
   private def profileName(fileName: String): String = {
     val suffix = ".profile.properties"
@@ -85,11 +94,6 @@ class TaggedCommitStatsService @Inject()(protected val dbConfigProvider: Databas
       "illegal"
     }
   }
-
-  lazy val allTaggers = (builtInTaggers ++ customTaggers).withDefaultValue(javaOnionTagger)
-
-  private def srcMain: CommitOnFile => Boolean = commit =>
-    commit.file.contains("src/main") || commit.file.contains("app/")
 
   private def infrastructure: CommitOnFile => Option[String] = commit =>
     if (commit.file.contains("infrastructure/")) Some("infrastructure") else None
@@ -108,8 +112,6 @@ class TaggedCommitStatsService @Inject()(protected val dbConfigProvider: Databas
   private def configuration: CommitOnFile => Option[String] = commit =>
     if (commit.file.contains("configuration") || commit.file.contains("app/configs")) Some("configuration") else None
 
-  private def tags(profile: Option[String]): CommitOnFile => List[String] = commit =>
-    allTaggers(profile.getOrElse("java.onion"))(commit.file)
 
   private def tags2(profile: Option[String]): CommitOnFile => List[String] = commit =>
     List(infrastructure, application, domain, controller, gateway, configuration)
