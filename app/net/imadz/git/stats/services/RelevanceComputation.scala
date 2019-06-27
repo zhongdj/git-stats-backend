@@ -23,15 +23,14 @@ case class SymmetryMatrix(cooccurrences: Map[Int, Map[Int, Int]] = Map.empty.wit
 
 trait RelevanceComputation {
 
-  def count(normalized: List[List[Int]]): SymmetryMatrix = ???
+  def categorize[T](implicit N: Normalizer[T]): List[List[T]] => Set[Set[T]] = xss =>
+    classify(count(normalize(xss)))
 
-  def classify[T](matrix: SymmetryMatrix)(implicit N: Normalizer[T]): Set[Set[T]] = ???
+  private def count(normalized: List[List[Int]]): SymmetryMatrix = ???
 
-  def categorize[T](implicit N: Normalizer[T]): List[List[T]] => Set[Set[T]] = xss => {
-    val normalized = xss.map(_.map(N.normalize))
-    val cooccurrences = count(normalized)
-    classify(cooccurrences)
+  private def classify[T](matrix: SymmetryMatrix)(implicit N: Normalizer[T]): Set[Set[T]] = ???
+
+  private def normalize[T](xss: List[List[T]])(implicit N: Normalizer[T]): List[List[Int]] = {
+    xss.map(_.map(N.normalize))
   }
-
-
 }
