@@ -29,8 +29,8 @@ trait RelevanceComputation {
 
   def categorize[T](implicit N: Normalizer[T]): List[List[T]] => Set[Set[T]] = xss => {
     val normalized = xss.map(_.map(N.normalize))
-    val matrix = count(normalized)
-    classify(matrix)
+    val cooccurrences = count(normalized)
+    classify(cooccurrences)
   }
 
 
