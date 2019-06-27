@@ -8,6 +8,7 @@ services:
     volumes:
       - ~/.ssh:/root/.ssh
       - ~/.git-stats-tasks:/root/.tasks
+      - conf/tags:/root/tags
 
   db:
     image: mysql:5.7
