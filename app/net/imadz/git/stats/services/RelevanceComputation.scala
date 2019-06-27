@@ -28,7 +28,7 @@ trait RelevanceComputation {
   def classify[T](matrix: SymmetryMatrix)(implicit N: Normalizer[T]): Set[Set[T]] = ???
 
   def categorize[T](implicit N: Normalizer[T]): List[List[T]] => Set[Set[T]] = xss => {
-    val normalized = xss.map(xs => xs.map(N.normalize))
+    val normalized = xss.map(_.map(N.normalize))
     val matrix = count(normalized)
     classify(matrix)
   }
