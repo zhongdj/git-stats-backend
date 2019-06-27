@@ -52,6 +52,10 @@ class RelevanceComputationTest extends WordSpecLike with MustMatchers with Relev
       matrix.value(1, 2) should be(1)
       matrix.value(2, 3) should be(1)
     }
+
+    "count does not stack overflow within 1000 elements" in {
+      count(List(1 to 1000 toList))
+    }
   }
 
   "Categorize Algorithm" must {

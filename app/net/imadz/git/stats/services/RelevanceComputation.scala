@@ -27,8 +27,6 @@ trait RelevanceComputation {
   def categorize[T](implicit N: Normalizer[T]): List[List[T]] => Set[Set[T]] = xss =>
     classify(count(normalize(xss)))
 
-  private def classify[T](matrix: SymmetryMatrix)(implicit N: Normalizer[T]): Set[Set[T]] = ???
-
   private def normalize[T](xss: List[List[T]])(implicit N: Normalizer[T]): List[List[Int]] = {
     xss.map(_.map(N.normalize))
   }
@@ -39,7 +37,9 @@ trait RelevanceComputation {
     }
 
   def countRelevance(matrix: SymmetryMatrix, xs: List[Int]): SymmetryMatrix = xs match {
-    case Nil     => matrix
     case x :: ys => countRelevance(ys.foldLeft(matrix.increase(x, x))((ms, y) => ms.increase(x, y)), ys)
+    case Nil     => matrix
   }
+
+  private def classify[T](matrix: SymmetryMatrix)(implicit N: Normalizer[T]): Set[Set[T]] = ???
 }
