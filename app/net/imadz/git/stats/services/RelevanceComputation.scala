@@ -1,5 +1,10 @@
 package net.imadz.git.stats.services
 
+trait Normalizer[T] {
+  def normalize: T => Int
+
+  def denormalize: Int => T
+}
 
 case class SymmetryMatrix(cooccurrences: Map[Int, Map[Int, Int]] = Map.empty.withDefaultValue(Map.empty.withDefaultValue(0))) {
   def increase(x: Int, y: Int): SymmetryMatrix =
@@ -18,6 +23,15 @@ case class SymmetryMatrix(cooccurrences: Map[Int, Map[Int, Int]] = Map.empty.wit
 
 trait RelevanceComputation {
 
-  def categorize[T]: List[T] => Set[Set[T]] = ???
+  def count(normalized: List[List[Int]]): SymmetryMatrix = ???
+
+  def classify[T](matrix: SymmetryMatrix)(implicit N: Normalizer[T]): Set[Set[T]] = ???
+
+  def categorize[T](implicit N: Normalizer[T]): List[List[T]] => Set[Set[T]] = xss => {
+    val normalized = xss.map(xs => xs.map(N.normalize))
+    val matrix = count(normalized)
+    classify(matrix)
+  }
+
 
 }
