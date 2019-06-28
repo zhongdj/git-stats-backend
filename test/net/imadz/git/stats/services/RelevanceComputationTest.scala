@@ -1,7 +1,7 @@
 package net.imadz.git.stats.services
 
 import org.scalatest.Matchers._
-import org.scalatest.{ MustMatchers, WordSpecLike }
+import org.scalatest.{MustMatchers, WordSpecLike}
 
 class RelevanceComputationTest extends WordSpecLike with MustMatchers with RelevanceComputation {
 
@@ -55,6 +55,18 @@ class RelevanceComputationTest extends WordSpecLike with MustMatchers with Relev
 
     "count does not stack overflow within 1000 elements" in {
       count(List(1 to 10000 toList))
+    }
+  }
+
+  "score" must {
+    "get 1 => 1 => 1 with 1 total" in {
+      score(1)(SymmetryMatrix(Map(1 -> Map(1 -> 1))))(1)(1) should be(1.toDouble)
+    }
+    "get 1 => 1 => 0.5, 2 => 2 => 0.5 and 1 => 2 => 0 with 2 total" in {
+      val matrix = SymmetryMatrix(Map(1 -> Map(1 -> 1), 2 -> Map(2 -> 1)))
+      score(2)(matrix)(1)(1) should be(0.5D)
+      score(2)(matrix)(2)(2) should be(0.5D)
+      score(2)(matrix)(2)(1) should be(0D)
     }
   }
 
