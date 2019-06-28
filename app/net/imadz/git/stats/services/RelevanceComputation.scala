@@ -1,5 +1,7 @@
 package net.imadz.git.stats.services
 
+import scala.annotation.tailrec
+
 trait Normalizer[T] {
   def normalize: T => Int
 
@@ -36,10 +38,24 @@ trait RelevanceComputation {
       case (matrix, xs) => countRelevance(matrix, xs)
     }
 
-  def countRelevance(matrix: SymmetryMatrix, xs: List[Int]): SymmetryMatrix = xs match {
-    case x :: ys => countRelevance(ys.foldLeft(matrix.increase(x, x))((ms, y) => ms.increase(x, y)), ys)
+  @tailrec
+  private def countRelevance(matrix: SymmetryMatrix, xs: List[Int]): SymmetryMatrix = xs match {
+    case x :: ys => countRelevance(countHead(matrix, x, ys), ys)
     case Nil     => matrix
   }
 
-  private def classify[T](matrix: SymmetryMatrix)(implicit N: Normalizer[T]): Set[Set[T]] = ???
+  private def countHead(matrix: SymmetryMatrix, x: Int, ys: List[Int]) = {
+    ys.foldLeft(matrix.increase(x, x))((ms, y) => ms.increase(x, y))
+  }
+
+  private def classify[T](matrix: SymmetryMatrix)(implicit N: Normalizer[T]): Set[Set[T]] = {
+    val xyz: Map[Int, Map[Int, Double]] = score(matrix)
+    val clustered: Set[Map[Int, Map[Int, Double]]] = cluster(xyz)
+    ???
+  }
+
+  def score(matrix: SymmetryMatrix): Map[Int, Map[Int, Double]] = ???
+
+  def cluster(xyz: Map[Int, Map[Int, Double]]): Set[Map[Int, Map[Int, Double]]] = ???
+
 }

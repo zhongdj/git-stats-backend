@@ -54,7 +54,7 @@ class RelevanceComputationTest extends WordSpecLike with MustMatchers with Relev
     }
 
     "count does not stack overflow within 1000 elements" in {
-      count(List(1 to 1000 toList))
+      count(List(1 to 10000 toList))
     }
   }
 
