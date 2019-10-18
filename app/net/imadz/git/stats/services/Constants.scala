@@ -4,7 +4,7 @@ import java.text.SimpleDateFormat
 
 trait Constants {
   val root = "/root/.tasks"
-  val r = """.*/(.*).git""".r
+  val r = """.*/(.*?)(?:\.git)?""".r
 
   def projectOf(repositoryUrl: String): String = repositoryUrl match {
     case r(projectName) => projectName
