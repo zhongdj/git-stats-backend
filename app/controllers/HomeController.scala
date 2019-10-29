@@ -44,7 +44,7 @@ class HomeController @Inject() (
       .exec(711L, l)
       .fold(_.message, r => r)
       + stat
-      .exec(projectPath(711L, l), "2019-06-01", "2019-06-08")
+      .exec(projectPath(711L, l), "2019-06-01", "2019-06-08", Nil)
       .map(s => SegmentParser.parse(s.split("""\n""").toList))
       .map(toMetricRow(711L))
       .map(rows => {

@@ -19,8 +19,8 @@ case class TaggedCommit(tag: String, commit: CommitOnFile)
 class TaggedCommitStatsService @Inject()(protected val dbConfigProvider: DatabaseConfigProvider)(implicit ec: ExecutionContext)
   extends Traversal with Constants with HasDatabaseConfigProvider[JdbcProfile] with Tagged {
 
-  def exec(dir: String, profile: Option[String]): Either[AppError, Future[String]] = {
-    val files: Either[AppError, List[String]] = lsTreeObjects(dir)
+  def exec(dir: String, profile: Option[String], excludes: List[String]): Either[AppError, Future[String]] = {
+    val files: Either[AppError, List[String]] = lsTreeObjects(dir, excludes)
     val commits: Either[AppError, List[CommitOnFile]] = files.flatMap(fs => sequence(fs.map(readCommits(dir)))).map(_.flatten)
     val taggedCommits: Either[AppError, List[TaggedCommit]] = commits.map(cs => cs.flatMap(tagging(profile)))
     commits
@@ -29,9 +29,13 @@ class TaggedCommitStatsService @Inject()(protected val dbConfigProvider: Databas
       .map(_.map(_.mkString(",")))
   }
 
-  private def lsTreeObjects(dir: String): Either[AppError, List[String]] = try {
+  def cmdOpt(pb: ProcessBuilder, excludes: List[String]): ProcessBuilder =
+    if (excludes.isEmpty) ""
+    else excludes.map(e => s"grep -v $e").foldLeft(pb){ case (p, c) => p #| c}
+
+  private def lsTreeObjects(dir: String, excludes: List[String]): Either[AppError, List[String]] = try {
     println(s"/opt/docker/git-ls-tree.sh $dir")
-    Right(s"/opt/docker/git-ls-tree.sh $dir" !!)
+    Right(cmdOpt(s"""/opt/docker/git-ls-tree.sh $dir""", excludes) !!)
       .map(_.split("""\n""").toList)
   } catch {
     case e: Throwable => Left(ShellCommandExecError(s"Failed to execute /opt/docker/git-ls-tree.sh $dir with: ${e.getMessage}"))
@@ -82,7 +86,6 @@ class TaggedCommitStatsService @Inject()(protected val dbConfigProvider: Databas
     .toMap
 
 
-
   private def srcMain: CommitOnFile => Boolean = commit =>
     commit.file.contains("src/main") || commit.file.contains("app/")
 
@@ -121,24 +124,3 @@ class TaggedCommitStatsService @Inject()(protected val dbConfigProvider: Databas
       .map(_.getOrElse(""))
 }
 
-object Demo extends App with Tagged {
-  private val javaOnionFile = new File("/Users/barry/Workspaces/external/git-stats-backend/conf/tags/java.onion.profile.properties")
-  //  val tag1 = taggerOf("conf/tags/java.onion.profile.properties")
-  val tag1 = taggerOf(javaOnionFile)
-  val tag2 = taggerOf("conf/tags/golang.profile.properties")
-  val tag = compose(tag1, tag2)
-  println(tag("/Library/Java/JavaVirtualMachines/jdk1.8.0_181.jdk/Contents/Home/bin/java"))
-  println(tag("./src/main/java/com/xiaoju/ep/cooper/pegasus/infrastructure/gateway/IdStartupRunner.java"))
-  println(tag("app/service/remote/fragment/fragment.go"))
-
-  private def profileName(fileName: String): String = {
-    fileName.substring(0, fileName.length - ".profile.properties".length)
-  }
-
-  private def profileName(file: File): String = {
-    file.getName.substring(0, file.getName.length - ".profile.properties".length)
-  }
-
-  println(profileName("golang.profile.properties"))
-  println(profileName(javaOnionFile))
-}

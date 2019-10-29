@@ -131,7 +131,7 @@ case class GitRepositoryUpdateJobWorker(taskId: Int, repo: services.GitRepositor
   import dbConfig.profile.api._
 
   private def analysis = {
-    statService.exec(projectPath(taskId, repo.repositoryUrl), fromDay, toDay)
+    statService.exec(projectPath(taskId, repo.repositoryUrl), fromDay, toDay, repo.excludes)
       .map(s => SegmentParser.parse(s.split("""\n""").toList))
       .map(toMetricRow(taskId))
       .map(rows => {
@@ -145,7 +145,7 @@ case class GitRepositoryUpdateJobWorker(taskId: Int, repo: services.GitRepositor
       }).map { futureStr =>
         futureStr.flatMap { str =>
           println(s"tagging: ${projectPath(taskId, repo.repositoryUrl)} commit started: ")
-          val eventualStr2 = taggedCommit.exec(projectPath(taskId, repo.repositoryUrl), repo.profile)
+          val eventualStr2 = taggedCommit.exec(projectPath(taskId, repo.repositoryUrl), repo.profile, repo.excludes)
             .fold(
               e => Future.successful(s"Failed to tag commit with: ${e.message}"),
               s => s
