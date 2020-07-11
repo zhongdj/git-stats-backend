@@ -30,7 +30,7 @@ class TaggedCommitStatsService @Inject()(protected val dbConfigProvider: Databas
   }
 
   def cmdOpt(pb: ProcessBuilder, excludes: List[String]): ProcessBuilder =
-    if (excludes.isEmpty) ""
+    if (excludes.isEmpty) pb
     else excludes.map(e => s"grep -v $e").foldLeft(pb){ case (p, c) => p #| c}
 
   private def lsTreeObjects(dir: String, excludes: List[String]): Either[AppError, List[String]] = try {
