@@ -2,15 +2,16 @@ package net.imadz.git.stats.algo
 
 import scala.collection.mutable.ListBuffer
 
-/** Basic immutable undirected graph class with weights
-  *
-  * @constructor Create a new [[Graph]]
-  * @param V Number of vertices
-  * @param E Number of edges
-  * @param adj_list Edge adjacency lists
-  */
+/**
+ * Basic immutable undirected graph class with weights
+ *
+ * @constructor Create a new [[Graph]]
+ * @param V Number of vertices
+ * @param E Number of edges
+ * @param adj_list Edge adjacency lists
+ */
 class WeightedGraph(val V: Int, val E: Int,
-                    private val adj_list: IndexedSeq[List[WeightedEdge]])
+    private val adj_list: IndexedSeq[List[WeightedEdge]])
   extends UndirectedGraph[WeightedEdge] {
 
   def degree(v: Int): Int = {
@@ -41,16 +42,18 @@ class WeightedGraph(val V: Int, val E: Int,
 }
 
 object WeightedGraph {
-  /** Build new immutable Graph from a list of edges
-    *
-    * @param edgeList List of edges specified as tuples of ints and weights
-    * @param allowDup Allow duplicate edges
-    * @return A new [[Graph]]
-    *
-    * Self edges not allowed.
-    */
-  def apply(edgeList: List[(Int, Int, Double)],
-            allowDup: Boolean = false): WeightedGraph = {
+  /**
+   * Build new immutable Graph from a list of edges
+   *
+   * @param edgeList List of edges specified as tuples of ints and weights
+   * @param allowDup Allow duplicate edges
+   * @return A new [[Graph]]
+   *
+   * Self edges not allowed.
+   */
+  def apply(
+    edgeList: List[(Int, Int, Double)],
+    allowDup: Boolean = false): WeightedGraph = {
 
     // Count number of vertices
     val V = edgeList.map(t => t._1 max t._2).max + 1

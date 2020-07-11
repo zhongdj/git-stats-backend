@@ -10,61 +10,68 @@ package net.imadz.git.stats.algo
  * versions of this to dfsSearch or bfsSearch
  */
 trait VertexVisitor[A <: EdgeLike] {
-  /** Called once on start vertex of search for each connected component
-    *
-    * @param u Vertex number [0, V)
-    * @param g [[GraphLike]] being visited
-    */
+  /**
+   * Called once on start vertex of search for each connected component
+   *
+   * @param u Vertex number [0, V)
+   * @param g [[GraphLike]] being visited
+   */
   def startVertex(u: Int, g: GraphLike[A]) = {}
 
-  /** Called when vertex is first discovered in search
-    *
-    * @param u Vertex number [0, V)
-    * @param g [[GraphLike]] being visited
-    */
+  /**
+   * Called when vertex is first discovered in search
+   *
+   * @param u Vertex number [0, V)
+   * @param g [[GraphLike]] being visited
+   */
   def discoverVertex(u: Int, g: GraphLike[A]) = {}
 
-  /** Called on encountering tree edge u -> v in graph search
-    *
-    * @param e Edge
-    * @param g [[GraphLike]] being searched
-    */
+  /**
+   * Called on encountering tree edge u -> v in graph search
+   *
+   * @param e Edge
+   * @param g [[GraphLike]] being searched
+   */
   def treeEdge(e: A, g: GraphLike[A]) = {}
 
-  /** Called when a vertex and all it's neighbors have been searched
-    *
-    * @param u Vertex number [0, V)
-    * @param g [[GraphLike]] being searched
-    */
+  /**
+   * Called when a vertex and all it's neighbors have been searched
+   *
+   * @param u Vertex number [0, V)
+   * @param g [[GraphLike]] being searched
+   */
   def finalizeVertex(u: Int, g: GraphLike[A]) = {}
 }
 
 /** Additional visitor methods relevant to depth-first search */
 trait dfsVisitor[A <: EdgeLike] extends VertexVisitor[A] {
-  /** Called when a back edge from u -> v is encountered
-    *
-    * @param e Edge
-    * @param g [[GraphLike]] being searched
-    */
+  /**
+   * Called when a back edge from u -> v is encountered
+   *
+   * @param e Edge
+   * @param g [[GraphLike]] being searched
+   */
   def backEdge(e: A, g: GraphLike[A]) = {}
 
-  /** Called when a cross edge is encountered
-    *
-    * @param e Edge
-    * @param g [[GraphLike]] being searched
-    *
-    * Can only happen in [[DirectedGraph]]
-    */
+  /**
+   * Called when a cross edge is encountered
+   *
+   * @param e Edge
+   * @param g [[GraphLike]] being searched
+   *
+   * Can only happen in [[DirectedGraph]]
+   */
   def crossEdge(e: A, g: GraphLike[A]) = {}
 }
 
 /** Additional visitor methods relevant to breadth-first search */
 trait bfsVisitor[A <: EdgeLike] extends VertexVisitor[A] {
-  /** Called when a non-tree edge is encountered
-    *
-    * @param e Edge
-    * @param g [[GraphLike]] being searched
-    */
+  /**
+   * Called when a non-tree edge is encountered
+   *
+   * @param e Edge
+   * @param g [[GraphLike]] being searched
+   */
   def nonTreeEdge(e: A, g: GraphLike[A]) = {}
 }
 

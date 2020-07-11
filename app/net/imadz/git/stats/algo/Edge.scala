@@ -40,7 +40,7 @@ class DirectedEdge(val u: Int, val v: Int) extends EdgeLike {
   // This time equality does depend on order
   override def equals(other: Any) = other match {
     case that: DirectedEdge => (u == that.u) && (v == that.v)
-    case _ => false
+    case _                  => false
   }
   override def hashCode = {
     41 * (u + 41) + v
@@ -60,13 +60,14 @@ trait WeightedEdgeLike extends EdgeLike {
   def weight: Double
 }
 
-/** Edge with weights (undirected)
-  *
-  * @param u From vertex
-  * @param v To vertex
-  * @param weight Weight of vertex
-  *
-  */
+/**
+ * Edge with weights (undirected)
+ *
+ * @param u From vertex
+ * @param v To vertex
+ * @param weight Weight of vertex
+ *
+ */
 // A double as the weight seems excessive, but declaring float
 // literals takes work in scala, so it's easier to use Double
 class WeightedEdge(val u: Int, val v: Int, val weight: Double)

@@ -15,7 +15,7 @@ object GraphSearch {
 
   import VertexSearchStatus._
 
-  import collection.mutable.{Queue => MQueue, Stack => MStack}
+  import collection.mutable.{ Queue => MQueue, Stack => MStack }
 
   /**
    * Inner dfs visitor function for [[DirectedGraph]]
@@ -26,9 +26,10 @@ object GraphSearch {
    *
    * Relies on caller to set up visitor and visited on initial call
    */
-  private def dfsInnerDi[A <: EdgeLike](g: DirectedGraph[A],
-                                        u: Int, visitor: dfsVisitor[A],
-                                        visited: Array[VertexSearchStatus]): Unit = {
+  private def dfsInnerDi[A <: EdgeLike](
+    g: DirectedGraph[A],
+    u: Int, visitor: dfsVisitor[A],
+    visited: Array[VertexSearchStatus]): Unit = {
 
     visited(u) = Discovered
     visitor.discoverVertex(u, g) // Pre-order
@@ -56,8 +57,8 @@ object GraphSearch {
    * Relies on caller to set up visitor and visited on initial call
    */
   private def dfsInnerUn[A <: EdgeLike](g: UndirectedGraph[A], u: Int, w: Int,
-                                        visitor: dfsVisitor[A],
-                                        visited: Array[VertexSearchStatus]): Unit = {
+    visitor: dfsVisitor[A],
+    visited: Array[VertexSearchStatus]): Unit = {
     visited(u) = Discovered
     visitor.discoverVertex(u, g) // Pre-order
     for (e <- g.adj(u)) {
@@ -79,15 +80,15 @@ object GraphSearch {
    * @param visitor [[dfsVisitor]] to use during search
    */
   def dfsVisitVertex[A <: EdgeLike](g: GraphLike[A], u: Int,
-                                    visitor: dfsVisitor[A]): Unit = {
+    visitor: dfsVisitor[A]): Unit = {
     require(g.V > 0, "Empty graph")
     require(u < g.V & u >= 0, s"Invalid start vertex $u")
 
     val visited = Array.fill(g.V)(Undiscovered)
     visitor.startVertex(u, g)
     g match {
-      case undig: UndirectedGraph[A] => dfsInnerUn (undig, u, u, visitor, visited)
-      case dig: DirectedGraph[A] => dfsInnerDi (dig, u, visitor, visited)
+      case undig: UndirectedGraph[A] => dfsInnerUn(undig, u, u, visitor, visited)
+      case dig: DirectedGraph[A]     => dfsInnerDi(dig, u, visitor, visited)
     }
   }
 
@@ -105,7 +106,7 @@ object GraphSearch {
         visitor.startVertex(u, g)
         g match {
           case undig: UndirectedGraph[A] => dfsInnerUn(undig, u, u, visitor, visited)
-          case dig: DirectedGraph[A] => dfsInnerDi(dig, u, visitor, visited)
+          case dig: DirectedGraph[A]     => dfsInnerDi(dig, u, visitor, visited)
         }
       }
   }
@@ -119,8 +120,8 @@ object GraphSearch {
    * @param visited Keeps track of search progress
    */
   private def bfsInner[A <: EdgeLike](g: GraphLike[A], s: Int,
-                                      visitor: bfsVisitor[A],
-                                      visited: Array[VertexSearchStatus]): Unit = {
+    visitor: bfsVisitor[A],
+    visited: Array[VertexSearchStatus]): Unit = {
 
     val q = new MQueue[Int]
 
@@ -137,8 +138,7 @@ object GraphSearch {
           visited(e.v) = Discovered
           visitor.discoverVertex(e.v, g)
           q += e.v
-        }
-        else
+        } else
           visitor.nonTreeEdge(e, g)
       }
       visited(u) = Finished
@@ -209,15 +209,16 @@ object GraphSearch {
     def components: IndexedSeq[Int] = comps.toIndexedSeq
   }
 
-  /** Labels all connected components with increasing index
-    *
-    * @param g [[UndirectedGraph]] to search
-    * @return A list giving the component each vertex belongs to; any
-    *         two vertices with the same value are connected and
-    *         in the same component
-    *
-    * This implementation for undirected graphs only, which are easier
-    */
+  /**
+   * Labels all connected components with increasing index
+   *
+   * @param g [[UndirectedGraph]] to search
+   * @return A list giving the component each vertex belongs to; any
+   *         two vertices with the same value are connected and
+   *         in the same component
+   *
+   * This implementation for undirected graphs only, which are easier
+   */
   def findConnectedComponents[A <: EdgeLike](g: UndirectedGraph[A]): IndexedSeq[Int] = {
     val vis = new ConnectedComponents[A](g) with dfsVisitor[A]
     dfsVisitAll(g, vis)
@@ -263,11 +264,12 @@ object GraphSearch {
 
     override def treeEdge(e: A, g: GraphLike[A]) = edgeTo(e.v) = e.u
 
-    /** Is there a path from the start vertex to the specified one?
-      *
-      * @param u Vertex to search for path to
-      * @return True if there is a path from initVertex to u
-      */
+    /**
+     * Is there a path from the start vertex to the specified one?
+     *
+     * @param u Vertex to search for path to
+     * @return True if there is a path from initVertex to u
+     */
     def hasPathTo(u: Int): Boolean = edgeTo(u) < V
 
     /**
@@ -289,7 +291,7 @@ object GraphSearch {
           s.push(currVertex)
           currVertex = edgeTo(currVertex)
         }
-        s.push(startVertex)  // Path ends on start vertex
+        s.push(startVertex) // Path ends on start vertex
         Some(s.toList)
       }
     }
@@ -305,7 +307,7 @@ object GraphSearch {
    *         None if one is not found
    */
   def findDFSPathBetween[A <: EdgeLike](u: Int, v: Int,
-                                        g: GraphLike[A]): Option[List[Int]] = {
+    g: GraphLike[A]): Option[List[Int]] = {
     val vis = new Path[A](g, u) with dfsVisitor[A]
     dfsVisitVertex(g, u, vis)
     vis.pathTo(v)
@@ -326,7 +328,7 @@ object GraphSearch {
     for (v <- 0 until g.V)
       vis.pathTo(v) match {
         case Some(pth) => ret += (v -> pth)
-        case None =>
+        case None      =>
       }
     ret.toMap
   }
@@ -344,7 +346,7 @@ object GraphSearch {
    * not be unique
    */
   def findBFSPathBetween[A <: EdgeLike](u: Int, v: Int,
-                                        g: GraphLike[A]): Option[List[Int]] = {
+    g: GraphLike[A]): Option[List[Int]] = {
     val vis = new Path[A](g, u) with bfsVisitor[A]
     bfsVisitVertex(g, u, vis)
     vis.pathTo(v)
@@ -368,7 +370,7 @@ object GraphSearch {
     for (v <- 0 until g.V)
       vis.pathTo(v) match {
         case Some(pth) => ret += (v -> pth)
-        case None =>
+        case None      =>
       }
     ret.toMap
   }
@@ -393,18 +395,18 @@ object GraphSearch {
       if (cycle) None else Some(topo.toList)
   }
 
-  /** Topologically sort a directed acyclic graph
-    *
-    * @param g The DAG to search
-    * @return A forward topological ordering of the vertices, or None
-    *         if this is not possible because the graph has a cycle
-    */
+  /**
+   * Topologically sort a directed acyclic graph
+   *
+   * @param g The DAG to search
+   * @return A forward topological ordering of the vertices, or None
+   *         if this is not possible because the graph has a cycle
+   */
   def topologicalSort[A <: EdgeLike](g: DirectedGraph[A]): Option[List[Int]] = {
     val vis = new TopologicalSortVisitor[A]
     dfsVisitAll(g, vis)
     vis.topologicalSort
   }
-
 
   /** Reverse post visitor for Kosaru */
   private class ReversePostVisitor[A <: EdgeLike] extends dfsVisitor[A] {
@@ -440,13 +442,14 @@ object GraphSearch {
     visC.components
   }
 
-  /** Tarajan's strong components algorithm
-    *
-    * @param g [[DirectedGraph]] to find strong components of
-    * @return A sequence giving the component each vertex belongs to; any
-    *         two vertices with the same value are connected and
-    *         in the same component
-    */
+  /**
+   * Tarajan's strong components algorithm
+   *
+   * @param g [[DirectedGraph]] to find strong components of
+   * @return A sequence giving the component each vertex belongs to; any
+   *         two vertices with the same value are connected and
+   *         in the same component
+   */
   // This can be implemented as a visitor (see the Boost implementation),
   // but it's a bit easier to use a more specialized recursive search
   def tarajanComponents[A <: EdgeLike](g: DirectedGraph[A]): IndexedSeq[Int] = {
@@ -491,17 +494,18 @@ object GraphSearch {
     cc.toIndexedSeq
   }
 
-  /** Labels all connected components of a directed Graph with
-    * increasing index
-    *
-    * @param g [[DirectedGraph]] to search
-    * @return A list giving the component each vertex belongs to; any
-    *         two vertices with the same value are connected and
-    *         in the same component
-    *
-    * This implementation for directed graphs using the Kosaru
-    * algorithm
-    */
+  /**
+   * Labels all connected components of a directed Graph with
+   * increasing index
+   *
+   * @param g [[DirectedGraph]] to search
+   * @return A list giving the component each vertex belongs to; any
+   *         two vertices with the same value are connected and
+   *         in the same component
+   *
+   * This implementation for directed graphs using the Kosaru
+   * algorithm
+   */
   def findConnectedComponents[A <: EdgeLike](g: DirectedGraph[A]): IndexedSeq[Int] = {
     tarajanComponents(g)
   }

@@ -4,7 +4,7 @@ package net.imadz.git.stats.algo
  * Routines for creating a minimum spanning tree for undirected, weighted graphs
  */
 object MST {
-  import collection.mutable.{ListBuffer, PriorityQueue => MPQueue}
+  import collection.mutable.{ ListBuffer, PriorityQueue => MPQueue }
   import scala.math.Ordering
 
   // Ordering for minimum weight edge
@@ -12,14 +12,15 @@ object MST {
     def compare(x: WeightedEdge, y: WeightedEdge): Int = y.weight compare x.weight
   }
 
-  /** Construct a MST using a Lazy version of Prim's algorithm
-    *
-    * @param G A [[WeightedGraph]] that is assumed to be connected
-    * @return A [[WeightedGraph]] giving the Minimum Spanning Tree
-    *
-    * If G is not connected, then the MST for the connected component
-    * starting at vertex 0 will be returned
-    */
+  /**
+   * Construct a MST using a Lazy version of Prim's algorithm
+   *
+   * @param G A [[WeightedGraph]] that is assumed to be connected
+   * @return A [[WeightedGraph]] giving the Minimum Spanning Tree
+   *
+   * If G is not connected, then the MST for the connected component
+   * starting at vertex 0 will be returned
+   */
   def LazyPrimMST(G: WeightedGraph): (Double, WeightedGraph) = {
     require(G.V > 0, "G has no vertices")
 
@@ -48,14 +49,15 @@ object MST {
     (totwt, WeightedGraph(mst.toList))
   }
 
-  /** Construct a MST using a Lazy version of Prim's algorithm
-    *
-    * @param G A [[WeightedGraph]] that is assumed to be connected
-    * @return A [[WeightedGraph]] giving the Minimum Spanning Tree
-    *
-    * If G is not connected, then the MST for the connected component
-    * starting at vertex 0 will be returned
-    */
+  /**
+   * Construct a MST using a Lazy version of Prim's algorithm
+   *
+   * @param G A [[WeightedGraph]] that is assumed to be connected
+   * @return A [[WeightedGraph]] giving the Minimum Spanning Tree
+   *
+   * If G is not connected, then the MST for the connected component
+   * starting at vertex 0 will be returned
+   */
   def KruskalMST(G: WeightedGraph): (Double, WeightedGraph) = {
     require(G.V > 0, "G has no vertices")
 

@@ -1,6 +1,6 @@
 package net.imadz.git.stats.services
 
-import net.imadz.git.stats.algo.{MST, WeightedGraph}
+import net.imadz.git.stats.algo.{ MST, WeightedGraph }
 
 import scala.annotation.tailrec
 import scala.io.Source
@@ -44,7 +44,7 @@ trait RelevanceComputation {
   @tailrec
   private def countRelevance(matrix: SymmetryMatrix, xs: List[Int]): SymmetryMatrix = xs match {
     case x :: ys => countRelevance(countHead(matrix, x, ys), ys)
-    case Nil => matrix
+    case Nil     => matrix
   }
 
   private def countHead(matrix: SymmetryMatrix, x: Int, ys: List[Int]) = {
@@ -60,7 +60,7 @@ trait RelevanceComputation {
 
     normalized.toList.filterNot(tuple3 => tuple3._1 == tuple3._2).sortBy(_._3)
       .map { case (x, y, z) => (N.denormalize(x), N.denormalize(y), z) }
-      //.foreach(println)
+    //.foreach(println)
     val clustered: Set[Map[Int, Map[Int, Double]]] = cluster(xyz)
     Set.empty
   }
@@ -82,8 +82,8 @@ trait RelevanceComputation {
 
     val reversed = weighted.map(t => (t._1, t._2, 1 / t._3))
     val minimalEdges = MST.LazyPrimMST(WeightedGraph(reversed.toList))
-        ._2.edges
-        .map(edge => (edge.u, edge.v, 1 / edge.weight))
+      ._2.edges
+      .map(edge => (edge.u, edge.v, 1 / edge.weight))
 
     println(
       minimalEdges.toList.sortBy(_._3).map(triple => links(triple._1, triple._2, triple._3)).mkString(",")
@@ -127,7 +127,6 @@ object Demo extends App with RelevanceComputation {
   val cooccurrence: List[List[String]] = xs.groupBy(_._1).values.toList.map(_.map(_._2))
   val sm = count(normalize(cooccurrence)(N))
 
-
   println(file2Id.map(t => node(t._1, t._2, sm.value(t._2, t._2))).mkString(","))
 
   private case class FileNormalizer(norm: Map[String, Int], denorm: Map[Int, String]) extends Normalizer[String] {
@@ -135,7 +134,6 @@ object Demo extends App with RelevanceComputation {
 
     override def denormalize: Int => String = denorm
   }
-
 
   categorize[String].apply(cooccurrence)
 

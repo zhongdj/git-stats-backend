@@ -2,15 +2,16 @@ package net.imadz.git.stats.algo
 
 import scala.collection.mutable.ListBuffer
 
-/** Basic immutable undirected graph class
-  *
-  * @constructor Create a new [[Graph]]
-  * @param V Number of vertices
-  * @param E Number of edges
-  * @param adj_list Edge adjacency lists
-  */
+/**
+ * Basic immutable undirected graph class
+ *
+ * @constructor Create a new [[Graph]]
+ * @param V Number of vertices
+ * @param E Number of edges
+ * @param adj_list Edge adjacency lists
+ */
 class Graph(val V: Int, val E: Int,
-            private val adj_list: IndexedSeq[List[UndirectedEdge]])
+    private val adj_list: IndexedSeq[List[UndirectedEdge]])
   extends UndirectedGraph[UndirectedEdge] {
 
   def degree(v: Int): Int = {
@@ -29,15 +30,16 @@ class Graph(val V: Int, val E: Int,
 }
 
 object Graph {
-  /** Build new immutable Graph from a list of edges
-    *
-    * @param edgeList List of edges specified as tuples of ints
-    * @param allowDup Allow duplicate edges
-    * @param allowSelf Allow self loops
-    * @return A new [[Graph]]
-    */
-  def apply(edgeList: List[(Int, Int)], allowDup: Boolean=false,
-            allowSelf: Boolean=false): Graph = {
+  /**
+   * Build new immutable Graph from a list of edges
+   *
+   * @param edgeList List of edges specified as tuples of ints
+   * @param allowDup Allow duplicate edges
+   * @param allowSelf Allow self loops
+   * @return A new [[Graph]]
+   */
+  def apply(edgeList: List[(Int, Int)], allowDup: Boolean = false,
+    allowSelf: Boolean = false): Graph = {
 
     // Count number of vertices
     val V = edgeList.map(t => t._1 max t._2).max + 1
@@ -50,10 +52,11 @@ object Graph {
       if (allowSelf) {
         // Simple case -- just insert
         edgeList foreach {
-          t => {
-            adj_init(t._1) += UndirectedEdge(t._1, t._2)
-            if (t._1 != t._2) adj_init(t._2) += UndirectedEdge(t._2, t._1)
-          }
+          t =>
+            {
+              adj_init(t._1) += UndirectedEdge(t._1, t._2)
+              if (t._1 != t._2) adj_init(t._2) += UndirectedEdge(t._2, t._1)
+            }
         }
       } else {
         // Remove self edges
@@ -79,10 +82,11 @@ object Graph {
           }.toSet
 
       edgeSet foreach {
-        t => {
-          adj_init(t._1) += UndirectedEdge(t._1, t._2)
-          if (t._1 != t._2) adj_init(t._2) += UndirectedEdge(t._2, t._1)
-        }
+        t =>
+          {
+            adj_init(t._1) += UndirectedEdge(t._1, t._2)
+            if (t._1 != t._2) adj_init(t._2) += UndirectedEdge(t._2, t._1)
+          }
       }
       new Graph(V, edgeSet.size, adj_init.map(_.toList).toIndexedSeq)
     }
