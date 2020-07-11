@@ -41,7 +41,7 @@ class HomeController @Inject() (
   def index() = Action { implicit request: Request[AnyContent] =>
     val l = "git@github.com:zhongdj/git-stats-backend.git"
     Ok(clone
-      .exec(711L, l)
+      .exec(711L, l, "master")
       .fold(_.message, r => r)
       + stat
       .exec(projectPath(711L, l), "2019-06-01", "2019-06-08", Nil)

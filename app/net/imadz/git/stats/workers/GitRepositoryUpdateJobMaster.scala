@@ -119,7 +119,7 @@ case class GitRepositoryUpdateJobWorker(taskId: Int, repo: services.GitRepositor
 
   override def receive: Receive = {
     case Update =>
-      cloneService.exec(taskId, repo.repositoryUrl)
+      cloneService.exec(taskId, repo.repositoryUrl, repo.branch)
         .map { message =>
           parent ! Progress(message)
           analysis.fold(

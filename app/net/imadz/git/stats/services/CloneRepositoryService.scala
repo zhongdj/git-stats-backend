@@ -9,11 +9,11 @@ import scala.sys.process._
 
 class CloneRepositoryService extends Constants {
 
-  def exec(taskId: Long, repositoryUrl: String): Either[AppError, String] = {
+  def exec(taskId: Long, repositoryUrl: String, branch: String): Either[AppError, String] = {
     val taskDir = new File(s"$root/$taskId")
     val repoDir = new File(taskDir, projectOf(repositoryUrl))
     if (!repoDir.exists()) {
-      init(repositoryUrl, repoDir)
+      init(repositoryUrl, branch, repoDir)
     } else {
       if (repoDir.exists()) {
         update(repoDir)
@@ -23,11 +23,11 @@ class CloneRepositoryService extends Constants {
     }
   }
 
-  private def init(repositoryUrl: String, repoDir: File) = {
+  private def init(repositoryUrl: String, branch: String, repoDir: File) = {
     if (!repoDir.mkdirs()) Left(FileSystemError(s"cannot create folder: ${repoDir.getAbsolutePath}"))
     else
       try {
-        Right(s"git clone $repositoryUrl ${repoDir.getAbsolutePath}" !!)
+        Right(s"git clone --branch $branch $repositoryUrl ${repoDir.getAbsolutePath}" !!)
       } catch {
         case e: Throwable => Left(ShellCommandExecError(s"git clone $repositoryUrl ${repoDir.getAbsolutePath} with ${e.getMessage}"))
       }
