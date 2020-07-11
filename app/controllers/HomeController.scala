@@ -7,6 +7,7 @@ import net.imadz.git.stats.models.{ Metric, SegmentParser, Tables }
 import net.imadz.git.stats.services._
 import play.api.db.slick.{ DatabaseConfigProvider, HasDatabaseConfigProvider }
 import play.api.libs.json.Json
+import play.api.libs.ws.WSClient
 import play.api.mvc._
 import slick.jdbc.JdbcProfile
 import slick.lifted.TableQuery
@@ -20,6 +21,7 @@ import scala.concurrent.{ ExecutionContext, Future }
 @Singleton
 class HomeController @Inject() (
     cc: ControllerComponents,
+    ws: WSClient,
     clone: CloneRepositoryService, stat: InsertionStatsService,
     create: CreateTaskService,
     protected val dbConfigProvider: DatabaseConfigProvider)(implicit ec: ExecutionContext) extends AbstractController(cc) with Constants with HasDatabaseConfigProvider[JdbcProfile] {

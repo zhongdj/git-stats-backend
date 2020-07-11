@@ -1,98 +1,148 @@
 package net.imadz.git.stats.graph.metabase
+
+import akka.actor.ActorSystem
+import akka.stream.ActorMaterializer
+import play.api.libs.json.{ JsArray, JsValue }
+import play.api.libs.ws.WSClient
+
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-class LayeredGraphCardGenerator extends CardGenerator {
-  override def template(project: String): String =
-    s"""
-      |{
-      |   "name":"Controllers Distributed Graph2",
-      |   "dataset_query":{
-      |      "query":{
-      |         "source-table":5,
-      |         "filter":[
-      |            "and",
-      |            [
-      |               "=",
-      |               [
-      |                  "field-id",
-      |                  #tagged_commit.project
-      |               ],
-      |               "$project"
-      |            ],
-      |            [
-      |               "=",
-      |               [
-      |                  "field-id",
-      |                  #tagged_commit.tag
-      |               ],
-      |               "controllers"
-      |            ]
-      |         ],
-      |         "breakout":[
-      |            [
-      |               "datetime-field",
-      |               [
-      |                  "field-id",
-      |                  #tagged_commit.day
-      |               ],
-      |               "day"
-      |            ],
-      |            [
-      |               "field-id",
-      |               #tagged_commit.tag
-      |            ]
-      |         ],
-      |         "aggregation":[
-      |            [
-      |               "distinct",
-      |               [
-      |                  "field-id",
-      |                  #tagged_commit.commit_id
-      |               ]
-      |            ]
-      |         ]
-      |      },
-      |      "type":"query",
-      |      "database": #stats-db
-      |   },
-      |   "display":"area",
-      |   "description":null,
-      |   "visualization_settings":{
-      |      "graph.dimensions":[
-      |         "day",
-      |         "tag"
-      |      ],
-      |      "graph.metrics":[
-      |         "count"
-      |      ]
-      |   }
-      |
-      |}
-      |""".stripMargin
+class LayeredGraphCardGenerator(override val ws: WSClient, override val domain: String) extends CardGenerator {
 
-  override def contents: Map[String, String] = Map(
-    "#stats-db"-> "2",
-    "#tagged_commit.project" -> "38",
-    "#tagged_commit.tag" -> "37",
-    "#tagged_commit.day" -> "40",
-    "#tagged_commit.commit_id" -> "42"
+  override def template(project: String, branch: String): String =
+    s"""
+       |{
+       |   "name":"${shortName(project)}/$branch Onion Architecture Layered Graph",
+       |   "dataset_query":{
+       |      "query":{
+       |         "source-table":5,
+       |         "filter":[
+       |            "and",
+       |            [
+       |               "=",
+       |               [
+       |                  "field-id",
+       |                  #tagged_commit.project
+       |               ],
+       |               "$project"
+       |            ],
+       |            [
+       |               "=",
+       |               [
+       |                  "field-id",
+       |                  #tagged_commit.tag
+       |               ],
+       |               "application",
+       |               "domain",
+       |               "infrastructure"
+       |            ]
+       |         ],
+       |         "breakout":[
+       |            [
+       |               "datetime-field",
+       |               [
+       |                  "field-id",
+       |                  #tagged_commit.day
+       |               ],
+       |               "week"
+       |            ],
+       |            [
+       |               "field-id",
+       |               #tagged_commit.tag
+       |            ]
+       |         ],
+       |         "aggregation":[
+       |            [
+       |               "distinct",
+       |               [
+       |                  "field-id",
+       |                  #tagged_commit.commit_id
+       |               ]
+       |            ]
+       |         ]
+       |      },
+       |      "type":"query",
+       |      "database": #stats-db
+       |   },
+       |   "display":"area",
+       |   "description":null,
+       |   "visualization_settings":{
+       |      "graph.dimensions":[
+       |         "day",
+       |         "tag"
+       |      ],
+       |      "graph.metrics":[
+       |         "count"
+       |      ]
+       |   }
+       |
+       |}
+       |""".stripMargin.replaceAll("\\n", "")
+
+  private def findTaggedTable(db: JsValue): Future[JsValue] =
+    findTable(db, "tagged_commit")
+
+  private def project(taggedCommit: JsValue): String = findColumn(taggedCommit, "project")
+
+  private def tag(taggedCommit: JsValue): String = findColumn(taggedCommit, "tag")
+
+  private def day(taggedCommit: JsValue): String = findColumn(taggedCommit, "day")
+
+  private def commit(taggedCommit: JsValue): String = findColumn(taggedCommit, "commit_id")
+
+  private def findColumn(taggedCommit: JsValue, columnName: String) = {
+    (taggedCommit \ "fields").as[JsArray].value.find(js => {
+      (js \ "name").as[String] == columnName
+    }).map(js => (js \ "id").as[Int].toString)
+      .getOrElse(throw new RuntimeException(s"cannot find $columnName"))
+  }
+
+  private def fetchColumns(taggedCommit: JsValue): Future[(String, String, String, String)] = Future.successful(
+    (project(taggedCommit), tag(taggedCommit), day(taggedCommit), commit(taggedCommit))
   )
 
-  override def render(t: String, c: Map[String, String]): String = c.foldLeft(t){
+  override def contents: Future[Map[String, String]] =
+    for {
+      db <- findDB
+      taggedCommit <- findTaggedTable(db)
+      (projectColumnId, tagColumnId, dayColumnId, commitColumnId) <- fetchColumns(taggedCommit)
+    } yield Map(
+      "#stats-db" -> (db \ "id").as[Int].toString,
+      "#tagged_commit.project" -> projectColumnId,
+      "#tagged_commit.tag" -> tagColumnId,
+      "#tagged_commit.day" -> dayColumnId,
+      "#tagged_commit.commit_id" -> commitColumnId
+    )
+
+  override def render(t: String, c: Map[String, String]): String = c.foldLeft(t) {
     case (acc, (key, value)) => acc.replaceAll(key, value)
   }
 
-  override def createCard(payload: String): Future[Int] = {
-    println(payload)
-    Future.successful(1)
+  override def createCard(payload: String): Future[Int] = for {
+    session <- sessionValue
+    id <- ws.url("http://" + domain + "/api/card")
+      .withHttpHeaders(("Cookie", session), ("Content-Type", "application/json"))
+      .post[String](payload)
+      .map(resp => resp.json)
+      .map(_.\("id").as[Int])
+  } yield id
 
-
-
-
-    
-  }
 }
 
 object D2 extends App {
-  new LayeredGraphCardGenerator().generate("/root/.tasks/1/git-stats-backend")
+
+  import play.api.libs.ws.ahc._
+
+  import scala.concurrent.ExecutionContext.Implicits.global
+
+  implicit val system = ActorSystem()
+  implicit val materializer = ActorMaterializer()
+  val wsClient = AhcWSClient()
+  new LayeredGraphCardGenerator(wsClient, "metabase:3000")
+    .generate("/root/.tasks/1/tweet", "master")
+    .onComplete(println)
+  while (true) {
+    Thread.sleep(10000L)
+  }
 }

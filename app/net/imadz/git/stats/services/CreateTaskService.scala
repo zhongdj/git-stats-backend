@@ -8,12 +8,13 @@ import net.imadz.git.stats.models.Tables._
 import net.imadz.git.stats.workers.GitRepositoryUpdateJobMaster
 import net.imadz.git.stats.workers.GitRepositoryUpdateJobMaster.Update
 import play.api.db.slick.{ DatabaseConfigProvider, HasDatabaseConfigProvider }
+import play.api.libs.ws.WSClient
 import slick.jdbc.JdbcProfile
 
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.language.postfixOps
 
-class CreateTaskService @Inject() (protected val dbConfigProvider: DatabaseConfigProvider, actorSystem: ActorSystem,
+class CreateTaskService @Inject() (protected val dbConfigProvider: DatabaseConfigProvider, actorSystem: ActorSystem, ws: WSClient,
     clone: CloneRepositoryService, stats: InsertionStatsService, taggedCommit: TaggedCommitStatsService)(implicit ec: ExecutionContext)
   extends Constants
   with HasDatabaseConfigProvider[JdbcProfile]
@@ -49,7 +50,7 @@ class CreateTaskService @Inject() (protected val dbConfigProvider: DatabaseConfi
   }
 
   private def instantiateMaster(repositories: List[GitRepository], startDate: String, endDate: String, id: Int) = {
-    actorSystem.actorOf(GitRepositoryUpdateJobMaster.props(id, CreateTaskReq(repositories, startDate, Some(endDate)), clone, stats, taggedCommit, dbConfigProvider), id.toString)
+    actorSystem.actorOf(GitRepositoryUpdateJobMaster.props(id, CreateTaskReq(repositories, startDate, Some(endDate)), clone, stats, taggedCommit, ws, dbConfigProvider), id.toString)
   }
 
   private def fingerPrintOf(repositories: List[GitRepository]) = {

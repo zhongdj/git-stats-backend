@@ -16,6 +16,7 @@ lazy val root = (project in file("."))
     scalaVersion := "2.12.8",
     libraryDependencies += evolutions,
     libraryDependencies += guice,
+    libraryDependencies += ws,
     libraryDependencies += "org.scalatestplus.play" %% "scalatestplus-play" % "4.0.2" % Test,
     libraryDependencies ++= Seq(
       "com.typesafe.play" %% "play-slick" % "3.0.0",

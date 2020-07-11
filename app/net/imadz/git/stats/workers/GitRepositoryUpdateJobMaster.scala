@@ -2,22 +2,22 @@ package net.imadz.git.stats.workers
 
 import akka.actor.SupervisorStrategy.Restart
 import akka.actor.{ Actor, ActorRef, OneForOneStrategy, PoisonPill, Props, ReceiveTimeout, SupervisorStrategy, Terminated }
-import net.imadz.git.stats.models.{ Metric, SegmentParser, Tables }
 import net.imadz.git.stats.services._
 import net.imadz.git.stats.workers.GitRepositoryUpdateJobMaster.{ Done, Progress, Update }
-import net.imadz.git.stats.{ AppError, MD5, services }
+import net.imadz.git.stats.{ AppError, MD5 }
 import play.api.db.slick.{ DatabaseConfigProvider, HasDatabaseConfigProvider }
+import play.api.libs.ws.WSClient
 import slick.jdbc.JdbcProfile
-import slick.lifted.TableQuery
 
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import scala.concurrent.{ ExecutionContext, Future }
 import scala.language.postfixOps
 
 class GitRepositoryUpdateJobMaster(taskId: Int, req: CreateTaskReq,
     clone: CloneRepositoryService,
     stat: InsertionStatsService,
     taggedCommit: TaggedCommitStatsService,
+    ws: WSClient,
     protected val dbConfigProvider: DatabaseConfigProvider,
     observer: Option[ActorRef])(implicit ec: ExecutionContext) extends Actor with HasDatabaseConfigProvider[JdbcProfile] with MD5 {
 
@@ -28,7 +28,7 @@ class GitRepositoryUpdateJobMaster(taskId: Int, req: CreateTaskReq,
   private var workers: Set[ActorRef] = req.repositories.map(createWorker).toSet
 
   private def createWorker: GitRepository => ActorRef = r => {
-    val worker = context.actorOf(GitRepositoryUpdateJobWorker.props(taskId, r, clone, stat, taggedCommit, dbConfigProvider, req.fromDay, req.toDay.get), workerName(r))
+    val worker = context.actorOf(GitRepositoryUpdateJobWorker.props(taskId, r, clone, stat, taggedCommit, ws, dbConfigProvider, req.fromDay, req.toDay.get), workerName(r))
     context.watch(worker)
     worker
   }
@@ -79,12 +79,12 @@ class GitRepositoryUpdateJobMaster(taskId: Int, req: CreateTaskReq,
 
 object GitRepositoryUpdateJobMaster {
   def props(taskId: Int, createTaskReq: CreateTaskReq,
-    clone: CloneRepositoryService, stat: InsertionStatsService, taggedCommit: TaggedCommitStatsService, dbConfigProvider: DatabaseConfigProvider)(implicit ec: ExecutionContext): Props =
-    Props(new GitRepositoryUpdateJobMaster(taskId, createTaskReq, clone, stat, taggedCommit, dbConfigProvider, None))
+    clone: CloneRepositoryService, stat: InsertionStatsService, taggedCommit: TaggedCommitStatsService, ws: WSClient, dbConfigProvider: DatabaseConfigProvider)(implicit ec: ExecutionContext): Props =
+    Props(new GitRepositoryUpdateJobMaster(taskId, createTaskReq, clone, stat, taggedCommit, ws, dbConfigProvider, None))
 
   def props(taskId: Int, createTaskReq: CreateTaskReq,
-    clone: CloneRepositoryService, stat: InsertionStatsService, taggedCommit: TaggedCommitStatsService, dbConfigProvider: DatabaseConfigProvider, observer: ActorRef)(implicit ec: ExecutionContext): Props =
-    Props(new GitRepositoryUpdateJobMaster(taskId, createTaskReq, clone, stat, taggedCommit, dbConfigProvider, Some(observer)))
+    clone: CloneRepositoryService, stat: InsertionStatsService, taggedCommit: TaggedCommitStatsService, ws: WSClient, dbConfigProvider: DatabaseConfigProvider, observer: ActorRef)(implicit ec: ExecutionContext): Props =
+    Props(new GitRepositoryUpdateJobMaster(taskId, createTaskReq, clone, stat, taggedCommit, ws, dbConfigProvider, Some(observer)))
 
   trait Cmd
 
@@ -96,75 +96,3 @@ object GitRepositoryUpdateJobMaster {
 
 }
 
-case class GitRepositoryUpdateJobWorker(taskId: Int, repo: services.GitRepository,
-    cloneService: CloneRepositoryService,
-    statService: InsertionStatsService,
-    taggedCommit: TaggedCommitStatsService,
-    protected val dbConfigProvider: DatabaseConfigProvider,
-    fromDay: String, toDay: String)(implicit ec: ExecutionContext) extends Actor
-  with Constants with HasDatabaseConfigProvider[JdbcProfile] {
-
-  val data = TableQuery[Tables.Metric]
-
-  def dateOf(m: Metric): java.sql.Date = {
-    println(m.day)
-    val time = formatter.parse(m.day).getTime
-    new java.sql.Date(time)
-  }
-
-  private def toMetricRow(taskId: Long): List[Metric] => List[Tables.MetricRow] = xs =>
-    xs.map(x => Tables.MetricRow(0, taskId, dateOf(x), Some(x.project), Some(x.developer), Some(x.metric), Some(x.value)))
-
-  val parent = context.parent
-
-  override def receive: Receive = {
-    case Update =>
-      cloneService.exec(taskId, repo.repositoryUrl, repo.branch)
-        .map { message =>
-          parent ! Progress(message)
-          analysis.fold(
-            e => parent ! Done(repo, Left(e)),
-            f => f.foreach(message => parent ! Done(repo, Right(message))))
-        }
-  }
-
-  import dbConfig.profile.api._
-
-  private def analysis = {
-    statService.exec(projectPath(taskId, repo.repositoryUrl), fromDay, toDay, repo.excludes)
-      .map(s => SegmentParser.parse(s.split("""\n""").toList))
-      .map(toMetricRow(taskId))
-      .map(rows => {
-        dbConfig.db.run(DBIO.sequence(rows.map(Tables.Metric.insertOrUpdate)))
-          .map(_ => rows.mkString(","))
-          .recover {
-            case e =>
-              e.printStackTrace()
-              rows.mkString(",")
-          }
-      }).map { futureStr =>
-        futureStr.flatMap { str =>
-          println(s"tagging: ${projectPath(taskId, repo.repositoryUrl)} commit started: ")
-          val eventualStr2 = taggedCommit.exec(projectPath(taskId, repo.repositoryUrl), repo.profile, repo.excludes)
-            .fold(
-              e => Future.successful(s"Failed to tag commit with: ${e.message}"),
-              s => s
-            )
-          eventualStr2.map(str2 => str + "\n" + str2)
-        }
-      }
-
-  }
-}
-
-object GitRepositoryUpdateJobWorker {
-
-  def props(taskId: Int, r: services.GitRepository,
-    clone: CloneRepositoryService,
-    stat: InsertionStatsService,
-    taggedCommit: TaggedCommitStatsService,
-    dbConfigProvider: DatabaseConfigProvider,
-    fromDay: String, toDay: String)(implicit ec: ExecutionContext): Props =
-    Props(new GitRepositoryUpdateJobWorker(taskId, r, clone, stat, taggedCommit, dbConfigProvider, fromDay, toDay))
-
-}

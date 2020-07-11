@@ -18,7 +18,7 @@ class CloneRepositoryService extends Constants {
       if (repoDir.exists()) {
         update(repoDir)
       } else {
-        init(repositoryUrl, repoDir)
+        init(repositoryUrl, branch, repoDir)
       }
     }
   }
