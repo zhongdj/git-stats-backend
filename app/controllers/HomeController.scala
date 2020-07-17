@@ -3,6 +3,7 @@ package controllers
 import java.util.Date
 
 import javax.inject._
+import net.imadz.git.stats.graph.metabase.{ AddStatsDataSource, InitializationService }
 import net.imadz.git.stats.models.{ Metric, SegmentParser, Tables }
 import net.imadz.git.stats.services._
 import play.api.db.slick.{ DatabaseConfigProvider, HasDatabaseConfigProvider }
@@ -24,7 +25,14 @@ class HomeController @Inject() (
     ws: WSClient,
     clone: CloneRepositoryService, stat: InsertionStatsService,
     create: CreateTaskService,
+    metabaseInit: InitializationService,
+    addDataSource: AddStatsDataSource,
     protected val dbConfigProvider: DatabaseConfigProvider)(implicit ec: ExecutionContext) extends AbstractController(cc) with Constants with HasDatabaseConfigProvider[JdbcProfile] {
+
+  for {
+    _ <- metabaseInit.execute()
+    _ <- addDataSource.execute()
+  } yield ()
 
   val data = TableQuery[Tables.Metric]
 
