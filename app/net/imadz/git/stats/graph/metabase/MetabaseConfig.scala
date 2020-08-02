@@ -37,4 +37,7 @@ trait MetabaseConfig {
         .getOrElse(throw new RuntimeException("invalid username/password"))
       )
   }
+  protected def shortName(project: String): String = {
+    project.substring(project.lastIndexOf("/") + 1)
+  }
 }

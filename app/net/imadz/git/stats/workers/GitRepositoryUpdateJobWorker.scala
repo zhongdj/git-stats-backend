@@ -1,7 +1,7 @@
 package net.imadz.git.stats.workers
 
 import akka.actor.{ Actor, Props }
-import net.imadz.git.stats.graph.metabase.LayeredGraphCardGenerator
+import net.imadz.git.stats.graph.metabase.{ DailyLocPerCommit, LayeredGraphCardGenerator, WeeklyLocPerCommit }
 import net.imadz.git.stats.models.{ Metric, SegmentParser, Tables }
 import net.imadz.git.stats.services.{ CloneRepositoryService, Constants, InsertionStatsService, TaggedCommitStatsService }
 import net.imadz.git.stats.workers.GitRepositoryUpdateJobMaster.{ Done, Progress, Update }
@@ -78,7 +78,16 @@ case class GitRepositoryUpdateJobWorker(taskId: Int, repo: services.GitRepositor
       last <- whatever
       graphService = new LayeredGraphCardGenerator(ws, "metabase:3000")
       graphId <- graphService.generate(projectPath(taskId, repo.repositoryUrl), repo.branch)
-    } yield last + s"graphGenerated: $graphId"
+      graphService2 = new DailyLocPerCommit(ws, "metabase:3000")
+      graphId2 <- graphService2.generate(projectPath(taskId, repo.repositoryUrl), repo.branch)
+      graphService3 = new WeeklyLocPerCommit(ws, "metabase:3000")
+      graphId3 <- graphService3.generate(projectPath(taskId, repo.repositoryUrl), repo.branch)
+    } yield s"""$last
+      |graphGenerated:
+      |Layered: $graphId
+      |Daily Loc/Commit: $graphId2
+      |Weekly Loc/Commit: $graphId3
+      |    """
 
   private def tagCommit: Future[String] => Future[String] = {
     futureStr =>

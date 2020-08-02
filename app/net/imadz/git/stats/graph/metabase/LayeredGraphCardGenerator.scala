@@ -116,19 +116,6 @@ class LayeredGraphCardGenerator(override val ws: WSClient, override val domain: 
       "#tagged_commit.commit_id" -> commitColumnId
     )
 
-  override def render(t: String, c: Map[String, String]): String = c.foldLeft(t) {
-    case (acc, (key, value)) => acc.replaceAll(key, value)
-  }
-
-  override def createCard(payload: String): Future[Int] = for {
-    session <- sessionValue
-    id <- ws.url("http://" + domain + "/api/card")
-      .withHttpHeaders(("Cookie", session), ("Content-Type", "application/json"))
-      .post[String](payload)
-      .map(resp => resp.json)
-      .map(_.\("id").as[Int])
-  } yield id
-
 }
 
 object D2 extends App {
@@ -137,8 +124,8 @@ object D2 extends App {
 
   import scala.concurrent.ExecutionContext.Implicits.global
 
-  implicit val system = ActorSystem()
-  implicit val materializer = ActorMaterializer()
+  implicit val system: ActorSystem = ActorSystem()
+  implicit val materializer: ActorMaterializer = ActorMaterializer()
   val wsClient = AhcWSClient()
   new LayeredGraphCardGenerator(wsClient, "metabase:3000")
     .generate("/root/.tasks/1/tweet", "master")
