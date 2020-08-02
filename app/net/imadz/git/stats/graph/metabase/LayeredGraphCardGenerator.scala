@@ -74,7 +74,8 @@ class LayeredGraphCardGenerator(override val ws: WSClient, override val domain: 
        |      ],
        |      "graph.metrics":[
        |         "count"
-       |      ]
+       |      ],
+       |      "stackable.stack_type" : "stacked"
        |   }
        |
        |}
