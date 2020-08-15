@@ -1,7 +1,7 @@
 package net.imadz.git.stats.workers
 
 import akka.actor.{ Actor, Props }
-import net.imadz.git.stats.graph.metabase.{ CardGenerator, DailyLocPerCommit, LayeredGraphCardGenerator, WeeklyLocPerCommit }
+import net.imadz.git.stats.graph.metabase.{ CardGenerator, DailyLocPerCommit, HotFile, LayeredGraphCardGenerator, WeeklyLocPerCommit }
 import net.imadz.git.stats.models.{ Metric, SegmentParser, Tables }
 import net.imadz.git.stats.services._
 import net.imadz.git.stats.workers.GitRepositoryUpdateJobMaster.{ Done, Progress, Update }
@@ -77,8 +77,9 @@ case class GitRepositoryUpdateJobWorker(taskId: Int, repo: services.GitRepositor
   val graphService = new LayeredGraphCardGenerator(ws, "metabase:3000")
   val graphService2 = new DailyLocPerCommit(ws, "metabase:3000")
   val graphService3 = new WeeklyLocPerCommit(ws, "metabase:3000")
+  val graphService4 = new HotFile(ws, "metabase:3000")
 
-  val graphServices = graphService :: graphService2 :: graphService3 :: Nil
+  val graphServices = graphService :: graphService2 :: graphService3 :: graphService4 :: Nil
 
   private def generateGraph: Future[String] => Future[String] = whatever =>
     Future.sequence(whatever :: graphServices.map(genGraph))
