@@ -9,14 +9,15 @@ import scala.sys.process._
 
 class CloneRepositoryService extends Constants {
 
-  def exec(taskId: Long, repositoryUrl: String, branch: String): Either[AppError, String] = {
+  def exec(taskId: Long, repositoryUrl: String, branch: String, local: Boolean = false): Either[AppError, String] = {
     val taskDir = new File(s"$root/$taskId")
     val repoDir = new File(taskDir, projectOf(repositoryUrl))
     if (!repoDir.exists()) {
       init(repositoryUrl, branch, repoDir)
     } else {
       if (repoDir.exists()) {
-        update(repoDir)
+        if (!local) update(repoDir)
+        else Right("using local mode")
       } else {
         init(repositoryUrl, branch, repoDir)
       }

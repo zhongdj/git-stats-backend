@@ -13,7 +13,7 @@ class LayeredGraphCardGenerator(override val ws: WSClient, override val domain: 
   override def template(project: String, branch: String): String =
     s"""
        |{
-       |   "name":"${shortName(project)}/$branch Onion Architecture Layered Graph",
+       |   "name":"${graphName(project, branch)}",
        |   "dataset_query":{
        |      "query":{
        |         "source-table":5,
@@ -116,6 +116,7 @@ class LayeredGraphCardGenerator(override val ws: WSClient, override val domain: 
       "#tagged_commit.commit_id" -> commitColumnId
     )
 
+  override def graphName(project: String, branch: String): String = s"${shortName(project)}/$branch Onion Architecture Layered Graph"
 }
 
 object D2 extends App {

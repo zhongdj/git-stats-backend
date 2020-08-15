@@ -1,9 +1,9 @@
 package net.imadz.git.stats.workers
 
 import akka.actor.{ Actor, Props }
-import net.imadz.git.stats.graph.metabase.{ DailyLocPerCommit, LayeredGraphCardGenerator, WeeklyLocPerCommit }
+import net.imadz.git.stats.graph.metabase.{ CardGenerator, DailyLocPerCommit, LayeredGraphCardGenerator, WeeklyLocPerCommit }
 import net.imadz.git.stats.models.{ Metric, SegmentParser, Tables }
-import net.imadz.git.stats.services.{ CloneRepositoryService, Constants, InsertionStatsService, TaggedCommitStatsService }
+import net.imadz.git.stats.services._
 import net.imadz.git.stats.workers.GitRepositoryUpdateJobMaster.{ Done, Progress, Update }
 import net.imadz.git.stats.{ AppError, services }
 import play.api.db.slick.{ DatabaseConfigProvider, HasDatabaseConfigProvider }
@@ -17,6 +17,7 @@ case class GitRepositoryUpdateJobWorker(taskId: Int, repo: services.GitRepositor
     cloneService: CloneRepositoryService,
     statService: InsertionStatsService,
     taggedCommit: TaggedCommitStatsService,
+    graphRepository: GraphRepository,
     ws: WSClient,
     protected val dbConfigProvider: DatabaseConfigProvider,
     fromDay: String, toDay: String)(implicit ec: ExecutionContext) extends Actor
@@ -37,7 +38,7 @@ case class GitRepositoryUpdateJobWorker(taskId: Int, repo: services.GitRepositor
 
   override def receive: Receive = {
     case Update =>
-      cloneService.exec(taskId, repo.repositoryUrl, repo.branch)
+      cloneService.exec(taskId, repo.repositoryUrl, repo.branch, repo.local)
         .map { message =>
           parent ! Progress(message)
           analysis.fold(
@@ -73,21 +74,35 @@ case class GitRepositoryUpdateJobWorker(taskId: Int, repo: services.GitRepositor
       }
   }
 
+  val graphService = new LayeredGraphCardGenerator(ws, "metabase:3000")
+  val graphService2 = new DailyLocPerCommit(ws, "metabase:3000")
+  val graphService3 = new WeeklyLocPerCommit(ws, "metabase:3000")
+
+  val graphServices = graphService :: graphService2 :: graphService3 :: Nil
+
   private def generateGraph: Future[String] => Future[String] = whatever =>
+    Future.sequence(whatever :: graphServices.map(genGraph))
+      .map(_.mkString("\n"))
+
+  def find(taskId: Int, gName: String) = graphRepository.findGraph(taskId, gName)
+
+  def save(taskId: Int, gName: String, card: Int) = graphRepository.createGraph(taskId, gName, card)
+
+  private def genGraph: CardGenerator => Future[String] = gen => {
+    val gName = gen.graphName(projectOf(repo.repositoryUrl), repo.branch)
+    createGraph(gen, gName).recover {
+      case e => s"$gName generation failed, ${e.getMessage}"
+    }
+  }
+
+  private def createGraph(gen: CardGenerator, gName: String) = {
     for {
-      last <- whatever
-      graphService = new LayeredGraphCardGenerator(ws, "metabase:3000")
-      graphId <- graphService.generate(projectPath(taskId, repo.repositoryUrl), repo.branch)
-      graphService2 = new DailyLocPerCommit(ws, "metabase:3000")
-      graphId2 <- graphService2.generate(projectPath(taskId, repo.repositoryUrl), repo.branch)
-      graphService3 = new WeeklyLocPerCommit(ws, "metabase:3000")
-      graphId3 <- graphService3.generate(projectPath(taskId, repo.repositoryUrl), repo.branch)
-    } yield s"""$last
-      |graphGenerated:
-      |Layered: $graphId
-      |Daily Loc/Commit: $graphId2
-      |Weekly Loc/Commit: $graphId3
-      |    """
+      idOpt <- find(taskId, gName)
+      if idOpt.isEmpty
+      card <- gen.generate(projectPath(taskId, repo.repositoryUrl), repo.branch)
+      _ <- save(taskId, gName, card)
+    } yield s"${gName} is created: id = ${idOpt.getOrElse(card)}"
+  }
 
   private def tagCommit: Future[String] => Future[String] = {
     futureStr =>
@@ -109,9 +124,10 @@ object GitRepositoryUpdateJobWorker {
     clone: CloneRepositoryService,
     stat: InsertionStatsService,
     taggedCommit: TaggedCommitStatsService,
+    graphRepository: GraphRepository,
     ws: WSClient,
     dbConfigProvider: DatabaseConfigProvider,
     fromDay: String, toDay: String)(implicit ec: ExecutionContext): Props =
-    Props(new GitRepositoryUpdateJobWorker(taskId, r, clone, stat, taggedCommit, ws, dbConfigProvider, fromDay, toDay))
+    Props(new GitRepositoryUpdateJobWorker(taskId, r, clone, stat, taggedCommit, graphRepository, ws, dbConfigProvider, fromDay, toDay))
 
 }

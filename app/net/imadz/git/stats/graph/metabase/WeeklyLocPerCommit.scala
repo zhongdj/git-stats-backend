@@ -9,11 +9,11 @@ class WeeklyLocPerCommit(override val ws: WSClient, override val domain: String)
   override def template(project: String, branch: String): String =
     s"""
       |{
-      |   "name":" ${shortName(project)}/$branch Weekly Loc Per Commit",
+      |   "name":"${graphName(project, branch)}",
       |   "dataset_query":{
       |      "type":"native",
       |      "native":{
-      |         "query":"SELECT * \nFROM v_commits_loc_by_week\nwhere\nproject='$project'",
+      |         "query":"SELECT * \nFROM v_commits_loc_by_week\n where \nproject='$project'",
       |         "template-tags":{
       |
       |         }
@@ -46,7 +46,7 @@ class WeeklyLocPerCommit(override val ws: WSClient, override val domain: String)
       |      "graph.show_values":false
       |   }
       |}
-      |""".stripMargin
+      |""".stripMargin.replaceAll("\\n", "")
 
   override def contents: Future[Map[String, String]] =
   for {
@@ -55,4 +55,5 @@ class WeeklyLocPerCommit(override val ws: WSClient, override val domain: String)
     "#stats-db" -> (db \ "id").as[Int].toString,
   )
 
+  override def graphName(project: String, branch: String): String = s"${shortName(project)}/$branch Weekly Loc Per Commit"
 }

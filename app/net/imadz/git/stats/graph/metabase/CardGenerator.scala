@@ -5,6 +5,8 @@ import scala.concurrent.{ ExecutionContext, Future }
 trait CardGenerator extends MetabaseConfig with DatabaseMetadataProducer {
   self =>
 
+  def graphName(project: String, branch: String): String
+
   def template(project: String, branch: String): String
 
   def contents: Future[Map[String, String]]
@@ -13,14 +15,17 @@ trait CardGenerator extends MetabaseConfig with DatabaseMetadataProducer {
     case (acc, (key, value)) => acc.replaceAll(key, value)
   }
 
-  def createCard(payload: String)(implicit context: ExecutionContext): Future[Int] = for {
-    session <- sessionValue
-    id <- ws.url("http://" + domain + "/api/card")
-      .withHttpHeaders(("Cookie", session), ("Content-Type", "application/json"))
-      .post[String](payload)
-      .map(resp => resp.json)
-      .map(_.\("id").as[Int])
-  } yield id
+  def createCard(payload: String)(implicit context: ExecutionContext): Future[Int] = {
+    println(payload)
+    for {
+      session <- sessionValue
+      id <- ws.url("http://" + domain + "/api/card")
+        .withHttpHeaders(("Cookie", session), ("Content-Type", "application/json"))
+        .post[String](payload)
+        .map(resp => resp.json)
+        .map(_.\("id").as[Int])
+    } yield id
+  }
 
   def generate(project: String, branch: String)(implicit context: ExecutionContext): Future[Int] =
     for {
