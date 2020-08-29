@@ -37,7 +37,7 @@ lazy val root = (project in file("."))
       Cmd("FROM", "openjdk:8-jre-alpine"),
       Cmd("RUN",
         """apk update && apk upgrade && \
-                   apk add --no-cache bash git openssh"""),
+                   apk add --no-cache bash git openssh docker"""),
       Cmd("WORKDIR", "/opt/docker"),
       Cmd("ADD", "--chown=daemon:daemon opt /opt"),
       Cmd("CMD", """["bin/git-stats-backend", "-v", "-Dpidfile.path=/dev/null", "-Dplay.http.secret.key=ad31779d4ee49d5ad5162bf1429c32e2e9933f3b"]"""),

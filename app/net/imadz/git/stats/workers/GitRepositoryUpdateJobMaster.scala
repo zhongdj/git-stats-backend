@@ -26,7 +26,11 @@ class GitRepositoryUpdateJobMaster(taskId: Int, req: CreateTaskReq,
 
   var idleRounds = 0
 
-  private var workers: Set[ActorRef] = req.repositories.map(createWorker).toSet
+  private var workers: Set[ActorRef] = createWorkers
+
+  private def createWorkers = {
+    req.repositories.map(createWorker).toSet
+  }
 
   private def createWorker: GitRepository => ActorRef = r => {
     val worker = context.actorOf(GitRepositoryUpdateJobWorker.props(taskId, r, clone, stat, taggedCommit, graphRepository, ws, dbConfigProvider, req.fromDay, req.toDay.get), workerName(r))
@@ -43,9 +47,8 @@ class GitRepositoryUpdateJobMaster(taskId: Int, req: CreateTaskReq,
       context.become(updating)
       workers.foreach(_ ! Update)
     case ReceiveTimeout =>
-      println(s"being idle for $idleRounds minutes")
-      if (idleRounds <= 2) idleRounds += 1
-      else context.self ! PoisonPill
+      workers = createWorkers
+      self ! Update
   }
 
   def updating: Receive = {
@@ -66,7 +69,7 @@ class GitRepositoryUpdateJobMaster(taskId: Int, req: CreateTaskReq,
       workers -= worker
       if (workers.isEmpty) {
         context.become(idle)
-        context.setReceiveTimeout(5 minute)
+        context.setReceiveTimeout(240 minutes)
       }
   }
 
