@@ -19,11 +19,12 @@ class FunctionMetricsRepository @Inject() (protected val dbConfigProvider: Datab
 
   val functionMetrics = TableQuery[models.Tables.FuncMetric]
 
-  def toRow(taskId: Int, day: Date): FuncMetric => FuncMetricRow = fm => FuncMetricRow(0, taskId, day, fm.name, fm.abbrPath, fm.abbrPath, fm.lines, fm.params, fm.complexity, fm.complexityRate.toFloat)
+  def toRow(taskId: Int, taskItemId: Int, projectRoot: String, day: Date): FuncMetric => FuncMetricRow = fm => FuncMetricRow(0, taskId, taskItemId, day, fm.name, fm.abbrPath, projectRoot, fm.abbrPath, fm.lines, fm.params, fm.complexity, fm.complexityRate.toFloat)
 
-  def save(taskId: Int, metrics: List[FuncMetric]): Future[List[Int]] = {
+  def save(taskId: Int, taskItemId: Int, projectRoot: String, metrics: List[FuncMetric]): Future[List[Int]] = {
     val now = new Date(System.currentTimeMillis())
-    val rows: List[FuncMetricRow] = metrics.map(toRow(taskId, now))
+    val rows: List[FuncMetricRow] = metrics.map(toRow(taskId, taskItemId, projectRoot, now))
+    rows.foreach(println)
     Future.sequence(rows.map(insertOrUpdate))
   }
 

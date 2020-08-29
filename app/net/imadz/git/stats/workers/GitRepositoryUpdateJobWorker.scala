@@ -13,7 +13,7 @@ import slick.lifted.TableQuery
 
 import scala.concurrent.{ ExecutionContext, Future }
 
-case class GitRepositoryUpdateJobWorker(taskId: Int, repo: services.GitRepository,
+case class GitRepositoryUpdateJobWorker(taskId: Int, taskItemId: Int, repo: services.GitRepository,
     cloneService: CloneRepositoryService,
     statService: InsertionStatsService,
     functionStatsService: FunctionStatsService,
@@ -53,9 +53,9 @@ case class GitRepositoryUpdateJobWorker(taskId: Int, repo: services.GitRepositor
       .map(parseMetric)
       .map(toMetricRow(taskId))
       .map(insertMetric)
-      .map(functionMetric)
       .map(tagCommit)
       .map(generateGraph)
+      .map(functionMetric)
 
   }
 
@@ -122,13 +122,13 @@ case class GitRepositoryUpdateJobWorker(taskId: Int, repo: services.GitRepositor
 
   private def functionMetric: Future[String] => Future[String] = for {
     got <- _
-    funcMessage <- functionStatsService.exec(taskId, projectPath(taskId, repo.repositoryUrl), repo.profile, repo.excludes)
+    funcMessage <- functionStatsService.exec(taskId, taskItemId, projectPath(taskId, repo.repositoryUrl), repo.profile, repo.excludes)
   } yield got + "\n" + funcMessage
 }
 
 object GitRepositoryUpdateJobWorker {
 
-  def props(taskId: Int, r: services.GitRepository,
+  def props(taskId: Int, taskItemId: Int, r: services.GitRepository,
     clone: CloneRepositoryService,
     stat: InsertionStatsService,
     funcStats: FunctionStatsService,
@@ -137,6 +137,6 @@ object GitRepositoryUpdateJobWorker {
     ws: WSClient,
     dbConfigProvider: DatabaseConfigProvider,
     fromDay: String, toDay: String)(implicit ec: ExecutionContext): Props =
-    Props(new GitRepositoryUpdateJobWorker(taskId, r, clone, stat, funcStats, taggedCommit, graphRepository, ws, dbConfigProvider, fromDay, toDay))
+    Props(new GitRepositoryUpdateJobWorker(taskId, taskItemId, r, clone, stat, funcStats, taggedCommit, graphRepository, ws, dbConfigProvider, fromDay, toDay))
 
 }

@@ -1,7 +1,7 @@
 package net.imadz.git.stats.workers
 
 import akka.actor.SupervisorStrategy.Restart
-import akka.actor.{ Actor, ActorRef, OneForOneStrategy, PoisonPill, Props, ReceiveTimeout, SupervisorStrategy, Terminated }
+import akka.actor.{ Actor, ActorRef, OneForOneStrategy, Props, ReceiveTimeout, SupervisorStrategy, Terminated }
 import net.imadz.git.stats.services._
 import net.imadz.git.stats.workers.GitRepositoryUpdateJobMaster.{ Done, Progress, Update }
 import net.imadz.git.stats.{ AppError, MD5 }
@@ -13,7 +13,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class GitRepositoryUpdateJobMaster(taskId: Int, req: CreateTaskReq,
+class GitRepositoryUpdateJobMaster(taskId: Int, taskItemRows: Map[String, Int], req: CreateTaskReq,
     clone: CloneRepositoryService,
     stat: InsertionStatsService,
     funcStats: FunctionStatsService,
@@ -34,7 +34,7 @@ class GitRepositoryUpdateJobMaster(taskId: Int, req: CreateTaskReq,
   }
 
   private def createWorker: GitRepository => ActorRef = r => {
-    val worker = context.actorOf(GitRepositoryUpdateJobWorker.props(taskId, r, clone, stat, funcStats, taggedCommit, graphRepository, ws, dbConfigProvider, req.fromDay, req.toDay.get), workerName(r))
+    val worker = context.actorOf(GitRepositoryUpdateJobWorker.props(taskId, taskItemRows(r.repositoryUrl), r, clone, stat, funcStats, taggedCommit, graphRepository, ws, dbConfigProvider, req.fromDay, req.toDay.get), workerName(r))
     context.watch(worker)
     worker
   }
@@ -83,13 +83,13 @@ class GitRepositoryUpdateJobMaster(taskId: Int, req: CreateTaskReq,
 }
 
 object GitRepositoryUpdateJobMaster {
-  def props(taskId: Int, createTaskReq: CreateTaskReq,
+  def props(taskId: Int, createTaskReq: CreateTaskReq, taskItemRows: Map[String, Int],
     clone: CloneRepositoryService, stat: InsertionStatsService, funcStats: FunctionStatsService, taggedCommit: TaggedCommitStatsService, graphRepository: GraphRepository, ws: WSClient, dbConfigProvider: DatabaseConfigProvider)(implicit ec: ExecutionContext): Props =
-    Props(new GitRepositoryUpdateJobMaster(taskId, createTaskReq, clone, stat, funcStats, taggedCommit, graphRepository, ws, dbConfigProvider, None))
+    Props(new GitRepositoryUpdateJobMaster(taskId, taskItemRows, createTaskReq, clone, stat, funcStats, taggedCommit, graphRepository, ws, dbConfigProvider, None))
 
-  def props(taskId: Int, createTaskReq: CreateTaskReq,
+  def props(taskId: Int, createTaskReq: CreateTaskReq, taskItemRows: Map[String, Int],
     clone: CloneRepositoryService, stat: InsertionStatsService, funcStats: FunctionStatsService, taggedCommit: TaggedCommitStatsService, graphRepository: GraphRepository, ws: WSClient, dbConfigProvider: DatabaseConfigProvider, observer: ActorRef)(implicit ec: ExecutionContext): Props =
-    Props(new GitRepositoryUpdateJobMaster(taskId, createTaskReq, clone, stat, funcStats, taggedCommit, graphRepository, ws, dbConfigProvider, Some(observer)))
+    Props(new GitRepositoryUpdateJobMaster(taskId, taskItemRows, createTaskReq, clone, stat, funcStats, taggedCommit, graphRepository, ws, dbConfigProvider, Some(observer)))
 
   trait Cmd
 

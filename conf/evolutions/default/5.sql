@@ -4,9 +4,11 @@
 CREATE TABLE `func_metric` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
   `task_id` int(11) NOT NULL,
+  `task_item_id` int(11) NOT NULL,
   `day` date NOT NULL,
   `name` varchar(255) NOT NULL DEFAULT '',
   `file` varchar(400) NOT NULL DEFAULT '',
+  `project_root` varchar(400) NOT NULL DEFAULT '',
   `path` varchar(400) NOT NULL DEFAULT '',
   `lines` int(11) NOT NULL DEFAULT '0',
   `params` int(11) NOT NULL DEFAULT '0',
