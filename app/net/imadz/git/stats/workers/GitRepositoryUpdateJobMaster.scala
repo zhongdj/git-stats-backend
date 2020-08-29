@@ -16,6 +16,7 @@ import scala.language.postfixOps
 class GitRepositoryUpdateJobMaster(taskId: Int, req: CreateTaskReq,
     clone: CloneRepositoryService,
     stat: InsertionStatsService,
+    funcStats: FunctionStatsService,
     taggedCommit: TaggedCommitStatsService,
     graphRepository: GraphRepository,
     ws: WSClient,
@@ -33,7 +34,7 @@ class GitRepositoryUpdateJobMaster(taskId: Int, req: CreateTaskReq,
   }
 
   private def createWorker: GitRepository => ActorRef = r => {
-    val worker = context.actorOf(GitRepositoryUpdateJobWorker.props(taskId, r, clone, stat, taggedCommit, graphRepository, ws, dbConfigProvider, req.fromDay, req.toDay.get), workerName(r))
+    val worker = context.actorOf(GitRepositoryUpdateJobWorker.props(taskId, r, clone, stat, funcStats, taggedCommit, graphRepository, ws, dbConfigProvider, req.fromDay, req.toDay.get), workerName(r))
     context.watch(worker)
     worker
   }
@@ -83,12 +84,12 @@ class GitRepositoryUpdateJobMaster(taskId: Int, req: CreateTaskReq,
 
 object GitRepositoryUpdateJobMaster {
   def props(taskId: Int, createTaskReq: CreateTaskReq,
-    clone: CloneRepositoryService, stat: InsertionStatsService, taggedCommit: TaggedCommitStatsService, graphRepository: GraphRepository, ws: WSClient, dbConfigProvider: DatabaseConfigProvider)(implicit ec: ExecutionContext): Props =
-    Props(new GitRepositoryUpdateJobMaster(taskId, createTaskReq, clone, stat, taggedCommit, graphRepository, ws, dbConfigProvider, None))
+    clone: CloneRepositoryService, stat: InsertionStatsService, funcStats: FunctionStatsService, taggedCommit: TaggedCommitStatsService, graphRepository: GraphRepository, ws: WSClient, dbConfigProvider: DatabaseConfigProvider)(implicit ec: ExecutionContext): Props =
+    Props(new GitRepositoryUpdateJobMaster(taskId, createTaskReq, clone, stat, funcStats, taggedCommit, graphRepository, ws, dbConfigProvider, None))
 
   def props(taskId: Int, createTaskReq: CreateTaskReq,
-    clone: CloneRepositoryService, stat: InsertionStatsService, taggedCommit: TaggedCommitStatsService, graphRepository: GraphRepository, ws: WSClient, dbConfigProvider: DatabaseConfigProvider, observer: ActorRef)(implicit ec: ExecutionContext): Props =
-    Props(new GitRepositoryUpdateJobMaster(taskId, createTaskReq, clone, stat, taggedCommit, graphRepository, ws, dbConfigProvider, Some(observer)))
+    clone: CloneRepositoryService, stat: InsertionStatsService, funcStats: FunctionStatsService, taggedCommit: TaggedCommitStatsService, graphRepository: GraphRepository, ws: WSClient, dbConfigProvider: DatabaseConfigProvider, observer: ActorRef)(implicit ec: ExecutionContext): Props =
+    Props(new GitRepositoryUpdateJobMaster(taskId, createTaskReq, clone, stat, funcStats, taggedCommit, graphRepository, ws, dbConfigProvider, Some(observer)))
 
   trait Cmd
 

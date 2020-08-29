@@ -1,7 +1,7 @@
 package net.imadz.git.stats.workers
 
 import akka.actor.{ Actor, Props }
-import net.imadz.git.stats.graph.metabase.{ CardGenerator, DailyLocPerCommit, HotFile, LayeredGraphCardGenerator, WeeklyLocPerCommit }
+import net.imadz.git.stats.graph.metabase._
 import net.imadz.git.stats.models.{ Metric, SegmentParser, Tables }
 import net.imadz.git.stats.services._
 import net.imadz.git.stats.workers.GitRepositoryUpdateJobMaster.{ Done, Progress, Update }
@@ -16,6 +16,7 @@ import scala.concurrent.{ ExecutionContext, Future }
 case class GitRepositoryUpdateJobWorker(taskId: Int, repo: services.GitRepository,
     cloneService: CloneRepositoryService,
     statService: InsertionStatsService,
+    functionStatsService: FunctionStatsService,
     taggedCommit: TaggedCommitStatsService,
     graphRepository: GraphRepository,
     ws: WSClient,
@@ -52,6 +53,7 @@ case class GitRepositoryUpdateJobWorker(taskId: Int, repo: services.GitRepositor
       .map(parseMetric)
       .map(toMetricRow(taskId))
       .map(insertMetric)
+      .map(functionMetric)
       .map(tagCommit)
       .map(generateGraph)
 
@@ -117,6 +119,11 @@ case class GitRepositoryUpdateJobWorker(taskId: Int, repo: services.GitRepositor
         eventualStr2.map(str2 => str + "\n" + str2)
       }
   }
+
+  private def functionMetric: Future[String] => Future[String] = for {
+    got <- _
+    funcMessage <- functionStatsService.exec(taskId, projectPath(taskId, repo.repositoryUrl), repo.profile, repo.excludes)
+  } yield got + "\n" + funcMessage
 }
 
 object GitRepositoryUpdateJobWorker {
@@ -124,11 +131,12 @@ object GitRepositoryUpdateJobWorker {
   def props(taskId: Int, r: services.GitRepository,
     clone: CloneRepositoryService,
     stat: InsertionStatsService,
+    funcStats: FunctionStatsService,
     taggedCommit: TaggedCommitStatsService,
     graphRepository: GraphRepository,
     ws: WSClient,
     dbConfigProvider: DatabaseConfigProvider,
     fromDay: String, toDay: String)(implicit ec: ExecutionContext): Props =
-    Props(new GitRepositoryUpdateJobWorker(taskId, r, clone, stat, taggedCommit, graphRepository, ws, dbConfigProvider, fromDay, toDay))
+    Props(new GitRepositoryUpdateJobWorker(taskId, r, clone, stat, funcStats, taggedCommit, graphRepository, ws, dbConfigProvider, fromDay, toDay))
 
 }

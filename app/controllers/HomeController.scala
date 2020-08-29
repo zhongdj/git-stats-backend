@@ -24,6 +24,7 @@ class HomeController @Inject() (
     cc: ControllerComponents,
     ws: WSClient,
     clone: CloneRepositoryService, stat: InsertionStatsService,
+    functionStat: FunctionStatsService,
     create: CreateTaskService,
     metabaseInit: InitializationService,
     addDataSource: AddStatsDataSource,
