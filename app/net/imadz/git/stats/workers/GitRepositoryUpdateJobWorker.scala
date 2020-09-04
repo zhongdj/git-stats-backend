@@ -1,5 +1,7 @@
 package net.imadz.git.stats.workers
 
+import java.sql.Date
+
 import akka.actor.{ Actor, Props }
 import net.imadz.git.stats.graph.metabase._
 import net.imadz.git.stats.models.{ Metric, SegmentParser, Tables }
@@ -12,6 +14,8 @@ import slick.jdbc.JdbcProfile
 import slick.lifted.TableQuery
 
 import scala.concurrent.{ ExecutionContext, Future }
+import scala.language.postfixOps
+import scala.sys.process._
 
 case class GitRepositoryUpdateJobWorker(taskId: Int, taskItemId: Int, repo: services.GitRepository,
     cloneService: CloneRepositoryService,
@@ -55,20 +59,51 @@ case class GitRepositoryUpdateJobWorker(taskId: Int, taskItemId: Int, repo: serv
       .map(insertMetric)
       .map(tagCommit)
       .map(generateGraph)
-      .map(functionMetric)
+      .map(functionMetricAnalysis)
 
   }
+
+  import dbConfig.profile.api._
+
+  def eventualDays(): Future[List[(Date, String)]] = {
+    println("eventual Days: starting .....................................................")
+    val q = (for {
+      commit <- Tables.GitCommit.sortBy(_.day.desc)
+      if commit.project === projectPath(taskId, repo.repositoryUrl)
+    } yield commit).groupBy(_.day).map {
+      case (day, group) => (day, group.map(_.commitId).max.get)
+    }.result.map(_.toList)
+    val r = dbConfig.db.run(q)
+    r.foreach(_.foreach(println))
+    r
+  }
+
+  def align(projectRoot: String, branch: String): Future[String] = Future.successful {
+    println(s"align: $projectRoot/$branch")
+    s"/opt/docker/git-replay.sh $projectRoot $branch" !!
+  }
+
+  def functionMetricAnalysis: Future[String] => Future[String] = eventualMessage => for {
+    dayCommits <- eventualDays()
+    _ <- align(projectPath(taskId, repo.repositoryUrl), repo.branch)
+    f = dayCommits.map(dc => functionMetric(dc._1, dc._2))
+      .foldLeft[Future[String] => Future[String]](itself)((g, f) => g.compose(f))
+    message <- f(eventualMessage)
+  } yield message
+
+  def itself[T]: T => T = it => it
 
   private def fetchRepository: Either[AppError, String] =
     statService.exec(projectPath(taskId, repo.repositoryUrl), fromDay, toDay, repo.excludes)
 
   private def parseMetric: String => List[Metric] =
-    s => SegmentParser.parse(s.split("""\n""").toList)
+    s =>
+      SegmentParser.parse(s.split("""\n""").toList)
 
   private def insertMetric: List[Tables.MetricRow] => Future[String] = rows => {
     import dbConfig.profile.api._
-    dbConfig.db.run(DBIO.sequence(rows.map(Tables.Metric.insertOrUpdate)))
-      .map(_ => rows.mkString(","))
+    Future.sequence(rows.map(row => dbConfig.db.run(Tables.Metric.insertOrUpdate(row))))
+      .map(_ mkString (", "))
       .recover {
         case e =>
           e.printStackTrace()
@@ -120,9 +155,11 @@ case class GitRepositoryUpdateJobWorker(taskId: Int, taskItemId: Int, repo: serv
       }
   }
 
-  private def functionMetric: Future[String] => Future[String] = for {
+  // Date
+
+  private def functionMetric(theDate: Date, theCommit: String): Future[String] => Future[String] = for {
     got <- _
-    funcMessage <- functionStatsService.exec(taskId, taskItemId, projectPath(taskId, repo.repositoryUrl), repo.profile, repo.excludes)
+    funcMessage <- functionStatsService.exec(taskId, taskItemId, projectPath(taskId, repo.repositoryUrl), theDate, theCommit, repo.profile, repo.excludes)
   } yield got + "\n" + funcMessage
 }
 

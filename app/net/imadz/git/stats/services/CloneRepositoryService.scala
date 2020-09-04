@@ -16,7 +16,7 @@ class CloneRepositoryService extends Constants {
       init(repositoryUrl, branch, repoDir)
     } else {
       if (repoDir.exists()) {
-        if (!local) update(repoDir)
+        if (!local) update(repoDir, branch)
         else Right("using local mode")
       } else {
         init(repositoryUrl, branch, repoDir)
@@ -34,8 +34,8 @@ class CloneRepositoryService extends Constants {
       }
   }
 
-  private def update(repoDir: File): Either[AppError, String] = try {
-    Right(s"""/opt/docker/git-update.sh ${repoDir.getAbsolutePath}""" !!)
+  private def update(repoDir: File, branch: String): Either[AppError, String] = try {
+    Right(s"""/opt/docker/git-update.sh ${repoDir.getAbsolutePath} ${branch}""" !!)
   } catch {
     case e: Throwable => Left(ShellCommandExecError(s"cannot update repository at ${repoDir.getAbsolutePath} with ${e.getMessage}."))
   }

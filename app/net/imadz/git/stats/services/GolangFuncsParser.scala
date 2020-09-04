@@ -62,6 +62,7 @@ object GolangFuncsParser extends App {
   private def doubleValue(e: String): Double = e.split("=")(1).toDouble
 
   def parseFunctionMetrics(lines: String): List[FuncMetric] = {
+    println(s"parseFunctionMetrics: \n$lines")
     lines.split("\n")
       .map(_.trim)
       .filter(_.nonEmpty)
