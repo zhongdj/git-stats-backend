@@ -3,6 +3,7 @@ package net.imadz.git.stats.services
 import java.io.File
 
 import com.google.inject.Inject
+import net.imadz.git.stats.common.shell._
 import net.imadz.git.stats.{AppError, ShellCommandExecError}
 import play.api.db.slick.{DatabaseConfigProvider, HasDatabaseConfigProvider}
 import slick.jdbc.JdbcProfile
@@ -29,14 +30,11 @@ class TaggedCommitStatsService @Inject()(protected val dbConfigProvider: Databas
       .map(_.map(_.mkString(",")))
   }
 
-  def cmdOpt(pb: ProcessBuilder, excludes: List[String]): ProcessBuilder =
-    if (excludes.isEmpty) pb
-    else excludes.map(e => s"grep -v $e").foldLeft(pb) { case (p, c) => p #| c }
-
   private def lsTreeObjects(dir: String, excludes: List[String]): Either[AppError, List[String]] = try {
-    println(s"/opt/docker/git-ls-tree.sh $dir")
-    Right(cmdOpt(s"""/opt/docker/git-ls-tree.sh $dir""", excludes) !!)
-      .map(_.split("""\n""").toList)
+    val cli = s"""/opt/docker/git-ls-tree.sh $dir"""
+    println(s"$cli")
+    Right(excludeByGrep(excludes)(cli) !!)
+      .map(toMultipleLines)
   } catch {
     case e: Throwable => Left(ShellCommandExecError(s"Failed to execute /opt/docker/git-ls-tree.sh $dir with: ${e.getMessage}"))
   }
@@ -84,10 +82,6 @@ class TaggedCommitStatsService @Inject()(protected val dbConfigProvider: Databas
     .map(file => profileName(file.getName) -> taggerOf(file))
     .toMap
 
-
-  private def srcMain: CommitOnFile => Boolean = commit =>
-    commit.file.contains("src/main") || commit.file.contains("app/")
-
   private def profileName(fileName: String): String = {
     val suffix = ".profile.properties"
     if (fileName.endsWith(suffix)) {
@@ -97,29 +91,6 @@ class TaggedCommitStatsService @Inject()(protected val dbConfigProvider: Databas
     }
   }
 
-  private def infrastructure: CommitOnFile => Option[String] = commit =>
-    if (commit.file.contains("infrastructure/")) Some("infrastructure") else None
 
-  private def application: CommitOnFile => Option[String] = commit =>
-    if (commit.file.contains("application/")) Some("application") else None
-
-  private def domain: CommitOnFile => Option[String] = commit =>
-    if (commit.file.contains("domain/") || commit.file.contains("app/db") || commit.file.contains("app/service/async/jobs")) Some("domain") else None
-
-  private def controller: CommitOnFile => Option[String] = commit => Some("controller").filter(commit.file.contains)
-
-  private def gateway: CommitOnFile => Option[String] = commit =>
-    if (commit.file.contains("gateway") || commit.file.contains("app/service/remote")) Some("gateway") else None
-
-  private def configuration: CommitOnFile => Option[String] = commit =>
-    if (commit.file.contains("configuration") || commit.file.contains("app/configs")) Some("configuration") else None
-
-
-  private def tags2(profile: Option[String]): CommitOnFile => List[String] = commit =>
-    List(infrastructure, application, domain, controller, gateway, configuration)
-      .map(f => (commit: CommitOnFile) => if (!srcMain(commit)) None else f(commit))
-      .map(f => f(commit))
-      .filter(_.nonEmpty)
-      .map(_.getOrElse(""))
 }
 
