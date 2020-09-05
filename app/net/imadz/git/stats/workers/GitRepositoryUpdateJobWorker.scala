@@ -79,8 +79,8 @@ case class GitRepositoryUpdateJobWorker(taskId: Int, taskItemId: Int, repo: serv
 
   private def insertMetric: List[Tables.MetricRow] => Future[String] = rows => {
     import dbConfig.profile.api._
-    Future.sequence(rows.map(row => dbConfig.db.run(Tables.Metric.insertOrUpdate(row))))
-      .map(_ mkString (", "))
+    dbConfig.db.run(DBIO.sequence(rows.map(Tables.Metric.insertOrUpdate)))
+      .map(_ => rows.mkString(","))
       .recover {
         case e =>
           e.printStackTrace()

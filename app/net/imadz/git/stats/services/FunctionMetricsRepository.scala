@@ -24,9 +24,8 @@ class FunctionMetricsRepository @Inject() (protected val dbConfigProvider: Datab
   def save(taskId: Int, taskItemId: Int, projectRoot: String, now: Date, metrics: List[FuncMetric]): Future[List[Int]] = {
     val rows: List[FuncMetricRow] = metrics.map(toRow(taskId, taskItemId, projectRoot, now))
     rows.foreach(println)
-    Future.sequence(rows.map(insertOrUpdate))
+    dbConfig.db.run(functionMetrics.returning(functionMetrics.map(_.id)) ++= rows)
+      .map(_.toList)
   }
 
-  private def insertOrUpdate(row: FuncMetricRow): Future[Int] =
-    dbConfig.db.run(functionMetrics.returning(functionMetrics.map(_.id)).insertOrUpdate(row)).map(_.head)
 }

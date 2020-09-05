@@ -63,13 +63,14 @@ class TaggedCommitStatsService @Inject()(protected val dbConfigProvider: Databas
 
   private def batchInsertOrUpdate(dir: String)(xs: List[CommitOnFile]): Future[List[CommitOnFile]] = {
     val commits = xs.map(x => Tables.GitCommitRow(0, dir, x.id, x.file, x.developer, dateOf(x.date), x.message))
-    Future.sequence(commits.map(commit => dbConfig.db.run(Tables.GitCommit.insertOrUpdate(commit))))
+    dbConfig.db
+      .run(DBIO.sequence(commits.map(Tables.GitCommit.insertOrUpdate)))
       .map(_ => xs)
   }
 
   private def batchInsertOrUpdateTaggedCommit(dir: String)(xs: List[TaggedCommit]): Future[List[TaggedCommit]] = {
     val commits = xs.map(x => Tables.TaggedCommitRow(0, dateOf(x.commit.date), x.tag, dir, x.commit.id, x.commit.file))
-    Future.sequence(commits.map(commit => dbConfig.db.run(Tables.TaggedCommit.insertOrUpdate(commit))))
+    dbConfig.db.run(DBIO.sequence(commits.map(Tables.TaggedCommit.insertOrUpdate)))
       .map(_ => xs)
   }
 
