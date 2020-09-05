@@ -23,11 +23,18 @@ class TaggedCommitStatsService @Inject()(protected val dbConfigProvider: Databas
   def exec(dir: String, profile: Option[String], excludes: List[String]): Either[AppError, Future[String]] = {
     val files: Either[AppError, List[String]] = lsTreeObjects(dir, excludes)
     val commits: Either[AppError, List[CommitOnFile]] = files.flatMap(fs => sequence(fs.map(readCommits(dir)))).map(_.flatten)
-    val taggedCommits: Either[AppError, List[TaggedCommit]] = commits.map(cs => cs.flatMap(tagging(profile)))
-    commits
-      .map(batchInsertOrUpdate(dir))
-      .flatMap(_ => taggedCommits.map(batchInsertOrUpdateTaggedCommit(dir)))
-      .map(_.map(_.mkString(",")))
+    commits.map { cs =>
+      val eventualSavedCommits = batchInsertOrUpdate(dir)(cs)
+      val eventualTaggedCommits = Future.successful(taggingCommits(profile, cs)).flatMap(batchInsertOrUpdateTaggedCommit(dir))
+      for {
+        _ <- eventualSavedCommits
+        taggedCommits <- eventualTaggedCommits
+      } yield taggedCommits.mkString(",")
+    }
+  }
+
+  private def taggingCommits(profile: Option[String], cs: List[CommitOnFile]) = {
+    cs.flatMap(tagging(profile))
   }
 
   private def lsTreeObjects(dir: String, excludes: List[String]): Either[AppError, List[String]] = try {
