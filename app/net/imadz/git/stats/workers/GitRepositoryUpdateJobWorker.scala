@@ -2,30 +2,30 @@ package net.imadz.git.stats.workers
 
 import java.sql.Date
 
-import akka.actor.{Actor, Props}
+import akka.actor.{ Actor, Props }
 import net.imadz.git.stats.graph.metabase._
-import net.imadz.git.stats.models.{Metric, SegmentParser, Tables}
+import net.imadz.git.stats.models.{ Metric, SegmentParser, Tables }
 import net.imadz.git.stats.services._
-import net.imadz.git.stats.workers.GitRepositoryUpdateJobMaster.{Done, Progress, Update}
-import net.imadz.git.stats.{AppError, services}
-import play.api.db.slick.{DatabaseConfigProvider, HasDatabaseConfigProvider}
+import net.imadz.git.stats.workers.GitRepositoryUpdateJobMaster.{ Done, Progress, Update }
+import net.imadz.git.stats.{ AppError, services }
+import play.api.db.slick.{ DatabaseConfigProvider, HasDatabaseConfigProvider }
 import play.api.libs.ws.WSClient
 import slick.jdbc.JdbcProfile
 import slick.lifted.TableQuery
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ ExecutionContext, Future }
 import scala.language.postfixOps
 import scala.sys.process._
 
 case class GitRepositoryUpdateJobWorker(taskId: Int, taskItemId: Int, repo: services.GitRepository,
-                                        cloneService: CloneRepositoryService,
-                                        productivityStatsService: ProductivityStatsService,
-                                        functionStatsService: FunctionStatsService,
-                                        taggedCommitStatsService: TaggedCommitStatsService,
-                                        graphRepository: GraphRepository,
-                                        ws: WSClient,
-                                        protected val dbConfigProvider: DatabaseConfigProvider,
-                                        fromDay: String, toDay: String)(implicit ec: ExecutionContext) extends Actor
+    cloneService: CloneRepositoryService,
+    productivityStatsService: ProductivityStatsService,
+    functionStatsService: FunctionStatsService,
+    taggedCommitStatsService: TaggedCommitStatsService,
+    graphRepository: GraphRepository,
+    ws: WSClient,
+    protected val dbConfigProvider: DatabaseConfigProvider,
+    fromDay: String, toDay: String)(implicit ec: ExecutionContext) extends Actor
   with Constants with HasDatabaseConfigProvider[JdbcProfile] {
 
   val data = TableQuery[Tables.Metric]
@@ -52,11 +52,15 @@ case class GitRepositoryUpdateJobWorker(taskId: Int, taskItemId: Int, repo: serv
         }
   }
 
-  private def analysis = {
-    productivityMetric
-      .map(tagCommit)
-      .map(functionMetricAnalysis)
-      .map(generateGraph)
+  private def analysis: Either[AppError, Future[String]] = {
+    productivityMetric.map { productivityMetrics =>
+      for {
+        s1 <- productivityMetrics
+        s2 <- tagCommits
+        s3 <- processCyclomaticAnalysis
+        s4 <- generateGraph
+      } yield s"$s1 \n $s2 \n $s3 \n $s4"
+    }
   }
 
   private def productivityMetric = {
@@ -102,12 +106,6 @@ case class GitRepositoryUpdateJobWorker(taskId: Int, taskItemId: Int, repo: serv
     s"/opt/docker/git-replay.sh $projectRoot $branch" !!
   }
 
-  private def functionMetricAnalysis: Future[String] => Future[String] = eventualStr =>
-    for {
-      last <- eventualStr
-      current <- processCyclomaticAnalysis
-    } yield last + "\n" + current
-
   private def processCyclomaticAnalysis = {
     for {
       dayCommits <- eventualDays()
@@ -120,7 +118,6 @@ case class GitRepositoryUpdateJobWorker(taskId: Int, taskItemId: Int, repo: serv
 
   def itself[T]: T => T = it => it
 
-
   val graphService = new LayeredGraphCardGenerator(ws, "metabase:3000")
   val graphService2 = new DailyLocPerCommit(ws, "metabase:3000")
   val graphService3 = new WeeklyLocPerCommit(ws, "metabase:3000")
@@ -128,9 +125,9 @@ case class GitRepositoryUpdateJobWorker(taskId: Int, taskItemId: Int, repo: serv
 
   val graphServices = graphService :: graphService2 :: graphService3 :: graphService4 :: Nil
 
-  private def generateGraph: Future[String] => Future[String] = whatever =>
-    Future.sequence(whatever :: graphServices.map(genGraph))
-      .map(_.mkString("\n"))
+  private def generateGraph: Future[String] =
+    Future.sequence(graphServices.map(genGraph))
+      .map(_.mkString(", "))
 
   def find(taskId: Int, gName: String) = graphRepository.findGraph(taskId, gName)
 
@@ -152,17 +149,13 @@ case class GitRepositoryUpdateJobWorker(taskId: Int, taskItemId: Int, repo: serv
     } yield s"${gName} is created: id = ${idOpt.getOrElse(card)}"
   }
 
-  private def tagCommit: Future[String] => Future[String] = {
-    futureStr =>
-      futureStr.flatMap { str =>
-        println(s"tagging: ${projectPath(taskId, repo.repositoryUrl)} commit started: ")
-        val eventualStr2 = taggedCommitStatsService.exec(projectPath(taskId, repo.repositoryUrl), repo.profile, repo.excludes)
-          .fold(
-            e => Future.successful(s"Failed to tag commit with: ${e.message}"),
-            s => s
-          )
-        eventualStr2.map(str2 => str + "\n" + str2)
-      }
+  private def tagCommits: Future[String] = {
+    println(s"tagging: ${projectPath(taskId, repo.repositoryUrl)} commit started: ")
+    taggedCommitStatsService.exec(projectPath(taskId, repo.repositoryUrl), repo.profile, repo.excludes)
+      .fold(
+        e => Future.successful(s"Failed to tag commit with: ${e.message}"),
+        s => s
+      )
   }
 
   private def functionMetric(theDate: Date, theCommit: String): Future[String] => Future[String] = for {
@@ -174,14 +167,14 @@ case class GitRepositoryUpdateJobWorker(taskId: Int, taskItemId: Int, repo: serv
 object GitRepositoryUpdateJobWorker {
 
   def props(taskId: Int, taskItemId: Int, r: services.GitRepository,
-            clone: CloneRepositoryService,
-            stat: ProductivityStatsService,
-            funcStats: FunctionStatsService,
-            taggedCommit: TaggedCommitStatsService,
-            graphRepository: GraphRepository,
-            ws: WSClient,
-            dbConfigProvider: DatabaseConfigProvider,
-            fromDay: String, toDay: String)(implicit ec: ExecutionContext): Props =
+    clone: CloneRepositoryService,
+    stat: ProductivityStatsService,
+    funcStats: FunctionStatsService,
+    taggedCommit: TaggedCommitStatsService,
+    graphRepository: GraphRepository,
+    ws: WSClient,
+    dbConfigProvider: DatabaseConfigProvider,
+    fromDay: String, toDay: String)(implicit ec: ExecutionContext): Props =
     Props(new GitRepositoryUpdateJobWorker(taskId, taskItemId, r, clone, stat, funcStats, taggedCommit, graphRepository, ws, dbConfigProvider, fromDay, toDay))
 
 }

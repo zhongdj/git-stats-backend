@@ -1,11 +1,11 @@
 package net.imadz.git.stats.workers
 
 import akka.actor.SupervisorStrategy.Restart
-import akka.actor.{Actor, ActorRef, OneForOneStrategy, Props, ReceiveTimeout, SupervisorStrategy, Terminated}
+import akka.actor.{ Actor, ActorRef, OneForOneStrategy, Props, ReceiveTimeout, SupervisorStrategy, Terminated }
 import net.imadz.git.stats.services._
-import net.imadz.git.stats.workers.GitRepositoryUpdateJobMaster.{Done, Progress, Update}
-import net.imadz.git.stats.{AppError, MD5}
-import play.api.db.slick.{DatabaseConfigProvider, HasDatabaseConfigProvider}
+import net.imadz.git.stats.workers.GitRepositoryUpdateJobMaster.{ Done, Progress, Update }
+import net.imadz.git.stats.{ AppError, MD5 }
+import play.api.db.slick.{ DatabaseConfigProvider, HasDatabaseConfigProvider }
 import play.api.libs.ws.WSClient
 import slick.jdbc.JdbcProfile
 
@@ -14,14 +14,14 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 class GitRepositoryUpdateJobMaster(taskId: Int, taskItemRows: Map[String, Int], req: CreateTaskReq,
-                                   clone: CloneRepositoryService,
-                                   stat: ProductivityStatsService,
-                                   funcStats: FunctionStatsService,
-                                   taggedCommit: TaggedCommitStatsService,
-                                   graphRepository: GraphRepository,
-                                   ws: WSClient,
-                                   protected val dbConfigProvider: DatabaseConfigProvider,
-                                   observer: Option[ActorRef])(implicit ec: ExecutionContext) extends Actor with HasDatabaseConfigProvider[JdbcProfile] with MD5 {
+    clone: CloneRepositoryService,
+    stat: ProductivityStatsService,
+    funcStats: FunctionStatsService,
+    taggedCommit: TaggedCommitStatsService,
+    graphRepository: GraphRepository,
+    ws: WSClient,
+    protected val dbConfigProvider: DatabaseConfigProvider,
+    observer: Option[ActorRef])(implicit ec: ExecutionContext) extends Actor with HasDatabaseConfigProvider[JdbcProfile] with MD5 {
 
   override def receive: Receive = idle
 
@@ -53,7 +53,7 @@ class GitRepositoryUpdateJobMaster(taskId: Int, taskItemRows: Map[String, Int], 
   }
 
   def updating: Receive = {
-    case d@Done(repo, message) =>
+    case d @ Done(repo, message) =>
       println(message)
       context.stop(sender())
       observer.foreach(_ ! d)
@@ -84,11 +84,11 @@ class GitRepositoryUpdateJobMaster(taskId: Int, taskItemRows: Map[String, Int], 
 
 object GitRepositoryUpdateJobMaster {
   def props(taskId: Int, createTaskReq: CreateTaskReq, taskItemRows: Map[String, Int],
-            clone: CloneRepositoryService, stat: ProductivityStatsService, funcStats: FunctionStatsService, taggedCommit: TaggedCommitStatsService, graphRepository: GraphRepository, ws: WSClient, dbConfigProvider: DatabaseConfigProvider)(implicit ec: ExecutionContext): Props =
+    clone: CloneRepositoryService, stat: ProductivityStatsService, funcStats: FunctionStatsService, taggedCommit: TaggedCommitStatsService, graphRepository: GraphRepository, ws: WSClient, dbConfigProvider: DatabaseConfigProvider)(implicit ec: ExecutionContext): Props =
     Props(new GitRepositoryUpdateJobMaster(taskId, taskItemRows, createTaskReq, clone, stat, funcStats, taggedCommit, graphRepository, ws, dbConfigProvider, None))
 
   def props(taskId: Int, createTaskReq: CreateTaskReq, taskItemRows: Map[String, Int],
-            clone: CloneRepositoryService, stat: ProductivityStatsService, funcStats: FunctionStatsService, taggedCommit: TaggedCommitStatsService, graphRepository: GraphRepository, ws: WSClient, dbConfigProvider: DatabaseConfigProvider, observer: ActorRef)(implicit ec: ExecutionContext): Props =
+    clone: CloneRepositoryService, stat: ProductivityStatsService, funcStats: FunctionStatsService, taggedCommit: TaggedCommitStatsService, graphRepository: GraphRepository, ws: WSClient, dbConfigProvider: DatabaseConfigProvider, observer: ActorRef)(implicit ec: ExecutionContext): Props =
     Props(new GitRepositoryUpdateJobMaster(taskId, taskItemRows, createTaskReq, clone, stat, funcStats, taggedCommit, graphRepository, ws, dbConfigProvider, Some(observer)))
 
   trait Cmd
