@@ -23,7 +23,7 @@ import scala.concurrent.{ ExecutionContext, Future }
 class HomeController @Inject() (
     cc: ControllerComponents,
     ws: WSClient,
-    clone: CloneRepositoryService, stat: InsertionStatsService,
+    clone: CloneRepositoryService, stat: ProductivityStatsService,
     functionStat: FunctionStatsService,
     create: CreateTaskService,
     metabaseInit: InitializationService,

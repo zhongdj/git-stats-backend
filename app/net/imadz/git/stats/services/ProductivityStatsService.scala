@@ -8,14 +8,14 @@ import org.joda.time.{ DateTime, Days }
 import scala.language.postfixOps
 import scala.sys.process._
 
-class InsertionStatsService extends Constants {
+class ProductivityStatsService extends Constants {
 
-  def exOpts: List[String] => List[String] = xs => xs.map(x => s"""":(exclude)*$x*"""")
+  def excludeOnGitLog: List[String] => List[String] = xs => xs.map(x => s"""":(exclude)*$x*"""")
 
   def exec(project: String, fromStr: String, toStr: String, excludes: List[String]): Either[AppError, String] = {
-    println(s"InsertionStatsService: $fromStr, $toStr, $exOpts(excludes)")
+    println(s"InsertionStatsService: $fromStr, $toStr, $excludeOnGitLog(excludes)")
     range(fromStr, toStr)
-      .map(stat(_, project, exOpts(excludes)))
+      .map(stat(_, project, excludeOnGitLog(excludes)))
       .foldLeft[Either[AppError, String]](Right(""))(accumulate)
   }
 

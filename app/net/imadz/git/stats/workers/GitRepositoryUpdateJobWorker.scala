@@ -19,7 +19,7 @@ import scala.sys.process._
 
 case class GitRepositoryUpdateJobWorker(taskId: Int, taskItemId: Int, repo: services.GitRepository,
     cloneService: CloneRepositoryService,
-    statService: InsertionStatsService,
+    statService: ProductivityStatsService,
     functionStatsService: FunctionStatsService,
     taggedCommit: TaggedCommitStatsService,
     graphRepository: GraphRepository,
@@ -167,7 +167,7 @@ object GitRepositoryUpdateJobWorker {
 
   def props(taskId: Int, taskItemId: Int, r: services.GitRepository,
     clone: CloneRepositoryService,
-    stat: InsertionStatsService,
+    stat: ProductivityStatsService,
     funcStats: FunctionStatsService,
     taggedCommit: TaggedCommitStatsService,
     graphRepository: GraphRepository,

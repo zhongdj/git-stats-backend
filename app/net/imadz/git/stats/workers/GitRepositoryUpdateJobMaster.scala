@@ -15,7 +15,7 @@ import scala.language.postfixOps
 
 class GitRepositoryUpdateJobMaster(taskId: Int, taskItemRows: Map[String, Int], req: CreateTaskReq,
     clone: CloneRepositoryService,
-    stat: InsertionStatsService,
+    stat: ProductivityStatsService,
     funcStats: FunctionStatsService,
     taggedCommit: TaggedCommitStatsService,
     graphRepository: GraphRepository,
@@ -84,11 +84,11 @@ class GitRepositoryUpdateJobMaster(taskId: Int, taskItemRows: Map[String, Int], 
 
 object GitRepositoryUpdateJobMaster {
   def props(taskId: Int, createTaskReq: CreateTaskReq, taskItemRows: Map[String, Int],
-    clone: CloneRepositoryService, stat: InsertionStatsService, funcStats: FunctionStatsService, taggedCommit: TaggedCommitStatsService, graphRepository: GraphRepository, ws: WSClient, dbConfigProvider: DatabaseConfigProvider)(implicit ec: ExecutionContext): Props =
+    clone: CloneRepositoryService, stat: ProductivityStatsService, funcStats: FunctionStatsService, taggedCommit: TaggedCommitStatsService, graphRepository: GraphRepository, ws: WSClient, dbConfigProvider: DatabaseConfigProvider)(implicit ec: ExecutionContext): Props =
     Props(new GitRepositoryUpdateJobMaster(taskId, taskItemRows, createTaskReq, clone, stat, funcStats, taggedCommit, graphRepository, ws, dbConfigProvider, None))
 
   def props(taskId: Int, createTaskReq: CreateTaskReq, taskItemRows: Map[String, Int],
-    clone: CloneRepositoryService, stat: InsertionStatsService, funcStats: FunctionStatsService, taggedCommit: TaggedCommitStatsService, graphRepository: GraphRepository, ws: WSClient, dbConfigProvider: DatabaseConfigProvider, observer: ActorRef)(implicit ec: ExecutionContext): Props =
+    clone: CloneRepositoryService, stat: ProductivityStatsService, funcStats: FunctionStatsService, taggedCommit: TaggedCommitStatsService, graphRepository: GraphRepository, ws: WSClient, dbConfigProvider: DatabaseConfigProvider, observer: ActorRef)(implicit ec: ExecutionContext): Props =
     Props(new GitRepositoryUpdateJobMaster(taskId, taskItemRows, createTaskReq, clone, stat, funcStats, taggedCommit, graphRepository, ws, dbConfigProvider, Some(observer)))
 
   trait Cmd
