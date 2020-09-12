@@ -78,8 +78,7 @@ object FileTree extends App {
     case Nil => (parent, None)
     case file :: Nil =>
       val leaf = Leaf(file, parent)
-      parent.add(leaf)
-      (parent, Some(leaf))
+      (parent.add(leaf), Some(leaf))
     case file :: others =>
       val newChild = parent.child(file).map(theChild =>
         addFile(theChild, filePath)
@@ -133,19 +132,31 @@ case class InvertedFileIndex(projectRootPath: String) {
   }
 
   def matchDirectories(dirs: List[Directory], xs: List[Node[File]]): Option[File] = xs match {
-    case x :: Nil =>
-      matchDirectory(dirs, x).map(_ => x.label())
-    case x :: xs =>
-      matchDirectory(dirs, x).orElse(matchDirectories(dirs, xs))
+    case Leaf(it, parent) :: Nil =>
+      matchDirectory(dirs, parent).map(_ => it)
+    case Leaf(it, parent) :: xs =>
+      matchDirectory(dirs, parent).map(_ => it).orElse(matchDirectories(dirs, xs))
   }
 
-  def matchDirectory(dirs: List[Directory], x: Node[File]): Option[File] = dirs match {
-    case dir :: Nil => if (dir == x.label().getName) Some(x.label) else None
-    case dir :: others => for {
-      p <- x.parent()
-      d <- if (dir == x.label().getName) matchDirectory(others, p) else None
-    } yield d
+  def abbreviated: String => Boolean = _.startsWith(".")
+
+  def abbreviationMatched(full: Node[File]): Directory => Option[File] = abbrDir => {
+    val suffix = abbrDir.replaceAll("""\.+""", "")
+    if (full.label().getName.endsWith(suffix)) Some(full.label())
+    else None
   }
+
+  def matchDirectory(dirs: List[Directory], matching: Node[File]): Option[File] =
+    dirs match {
+      case dir :: Nil =>
+        if (abbreviated(dir))
+          abbreviationMatched(matching)(dir)
+        else if (dir == matching.label().getName) Some(matching.label) else None
+      case dir :: others => for {
+        next <- matching.parent()
+        d <- if (dir == matching.label().getName) matchDirectory(others, next) else None
+      } yield d
+    }
 
   def find(file: PathSuffix): Option[Path] = ???
 

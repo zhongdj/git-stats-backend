@@ -2,7 +2,7 @@ package net.imadz.git.stats.workers
 
 import java.sql.Date
 
-import akka.actor.{ Actor, Props }
+import akka.actor.{ Actor, ActorRef, Props }
 import net.imadz.git.stats.graph.metabase._
 import net.imadz.git.stats.models.{ Metric, SegmentParser, Tables }
 import net.imadz.git.stats.services._
@@ -28,6 +28,7 @@ case class GitRepositoryUpdateJobWorker(taskId: Int, taskItemId: Int, repo: serv
     fromDay: String, toDay: String)(implicit ec: ExecutionContext) extends Actor
   with Constants with HasDatabaseConfigProvider[JdbcProfile] {
 
+  val fileIndex: ActorRef = context.actorOf(FileIndexActor.apply(""), "taskItemId")
   val data = TableQuery[Tables.Metric]
 
   def dateOf(m: Metric): java.sql.Date = {
@@ -151,7 +152,7 @@ case class GitRepositoryUpdateJobWorker(taskId: Int, taskItemId: Int, repo: serv
 
   private def tagCommits: Future[String] = {
     println(s"tagging: ${projectPath(taskId, repo.repositoryUrl)} commit started: ")
-    taggedCommitStatsService.exec(projectPath(taskId, repo.repositoryUrl), repo.profile, repo.excludes)
+    taggedCommitStatsService.exec(fileIndex, projectPath(taskId, repo.repositoryUrl), repo.profile, repo.excludes)
       .fold(
         e => Future.successful(s"Failed to tag commit with: ${e.message}"),
         s => s
@@ -160,7 +161,7 @@ case class GitRepositoryUpdateJobWorker(taskId: Int, taskItemId: Int, repo: serv
 
   private def functionMetric(theDate: Date, theCommit: String): Future[String] => Future[String] = for {
     got <- _
-    funcMessage <- functionStatsService.exec(taskId, taskItemId, projectPath(taskId, repo.repositoryUrl), theDate, theCommit, repo.profile, repo.excludes)
+    funcMessage <- functionStatsService.exec(fileIndex, taskId, taskItemId, projectPath(taskId, repo.repositoryUrl), theDate, theCommit, repo.profile, repo.excludes)
   } yield got + "\n" + funcMessage
 }
 

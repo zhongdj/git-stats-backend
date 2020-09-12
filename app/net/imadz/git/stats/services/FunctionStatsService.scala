@@ -4,14 +4,20 @@ import java.io.File
 import java.sql.Date
 import java.util.UUID
 
+import akka.actor.ActorRef
 import com.google.inject.Inject
 import net.imadz.git.stats.{ AppError, ShellCommandExecError }
 import net.imadz.git.stats.services.GolangFuncsParser.{ FuncMetric, parseFunctionMetrics }
+import net.imadz.git.stats.workers.FileIndexActor.{ Found, SearchFile }
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.language.postfixOps
 import scala.sys.process._
+import akka.pattern.ask
+import akka.util.Timeout
+
+import scala.concurrent.duration._
 
 case class FunctionStatsService @Inject() (repository: FunctionMetricsRepository) {
 
@@ -21,15 +27,30 @@ case class FunctionStatsService @Inject() (repository: FunctionMetricsRepository
     r
   }
 
-  def save(taskId: Int, taskItemId: Int, projectRoot: String, theDay: Date, funcMetrics: List[FuncMetric]): Future[List[Int]] =
-    repository.save(taskId, taskItemId, projectRoot, theDay, funcMetrics)
+  def findFilePath(fileIndex: ActorRef): FuncMetric => Future[FuncMetric] = metric => {
+    implicit val timeout: Timeout = Timeout(5 seconds)
+    fileIndex ? SearchFile(metric.abbrPath) map {
+      case Found(file) => metric.copy(abbrPath = file)
+      case _           => metric
+    }
+  }
 
-  def exec(taskId: Int, taskItemId: Int, projectPath: String, theDay: Date, commitId: String, profile: Option[String], excludes: List[String]): Future[String] = {
+  def refineMetrics(fileIndex: ActorRef, funcMetrics: List[FuncMetric]): Future[List[FuncMetric]] = Future.sequence(
+    funcMetrics.map(findFilePath(fileIndex))
+  )
+
+  def save(fileIndex: ActorRef, taskId: Int, taskItemId: Int, projectRoot: String, theDay: Date, funcMetrics: List[FuncMetric]): Future[List[Int]] =
+    for {
+      refinedFuncMetrics <- refineMetrics(fileIndex, funcMetrics)
+      ids <- repository.save(taskId, taskItemId, projectRoot, theDay, refinedFuncMetrics)
+    } yield ids
+
+  def exec(fileIndex: ActorRef, taskId: Int, taskItemId: Int, projectPath: String, theDay: Date, commitId: String, profile: Option[String], excludes: List[String]): Future[String] = {
     println("processing function analysis: ")
     println(s"taskId = $taskId, taskItemId = $taskItemId, projectPath = $projectPath theDay = $theDay, commitId = $commitId")
     val str = scanFunctions(projectPath, commitId, excludes)
     println(str)
-    exeSave(taskId, taskItemId, projectPath, theDay, str).recover {
+    exeSave(fileIndex, taskId, taskItemId, projectPath, theDay, str).recover {
       case e: Throwable =>
         println("funcs save failed")
         e.printStackTrace()
@@ -37,9 +58,9 @@ case class FunctionStatsService @Inject() (repository: FunctionMetricsRepository
     }
   }
 
-  private def exeSave(taskId: Int, taskItemId: Int, projectPath: String, theDay: Date, str: String) = {
+  private def exeSave(fileIndex: ActorRef, taskId: Int, taskItemId: Int, projectPath: String, theDay: Date, str: String) = {
     for {
-      ids <- save(taskId, taskItemId, projectPath, theDay, map(str))
+      ids <- save(fileIndex, taskId, taskItemId, projectPath, theDay, map(str))
     } yield {
       println("funcs metric saved")
       ids.foreach(println)
