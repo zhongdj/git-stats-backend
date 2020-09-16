@@ -29,8 +29,10 @@ case class FunctionStatsService @Inject() (repository: FunctionMetricsRepository
 
   def findFilePath(fileIndex: ActorRef): FuncMetric => Future[FuncMetric] = metric => {
     implicit val timeout: Timeout = Timeout(5 seconds)
-    fileIndex ? SearchFile(metric.abbrPath) map {
-      case Found(file) => metric.copy(abbrPath = file)
+    val head = metric.abbrPath.split(":").head
+    println(s"processing abbr path: ${metric.abbrPath} to $head")
+    fileIndex ? SearchFile(head) map {
+      case Found(file) => metric.copy(fullPath = file)
       case _           => metric
     }
   }

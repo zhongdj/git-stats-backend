@@ -28,7 +28,7 @@ case class GitRepositoryUpdateJobWorker(taskId: Int, taskItemId: Int, repo: serv
     fromDay: String, toDay: String)(implicit ec: ExecutionContext) extends Actor
   with Constants with HasDatabaseConfigProvider[JdbcProfile] {
 
-  val fileIndex: ActorRef = context.actorOf(FileIndexActor.apply(""), "taskItemId")
+  val fileIndex: ActorRef = context.actorOf(FileIndexActor("/"), "taskItemId")
   val data = TableQuery[Tables.Metric]
 
   def dateOf(m: Metric): java.sql.Date = {
@@ -111,6 +111,7 @@ case class GitRepositoryUpdateJobWorker(taskId: Int, taskItemId: Int, repo: serv
     for {
       dayCommits <- eventualDays()
       _ <- align(projectPath(taskId, repo.repositoryUrl), repo.branch)
+      _ = dayCommits.foreach(println)
       f = dayCommits.map(dc => functionMetric(dc._1, dc._2))
         .foldLeft[Future[String] => Future[String]](itself)((g, f) => g.compose(f))
       message <- f(Future.successful(""))

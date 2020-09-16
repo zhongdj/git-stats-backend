@@ -3,33 +3,38 @@ package net.imadz.git.stats.services
 object GolangFuncsParser extends App {
   var lines =
     """(*articleUsecase) fillAuthorDetails article/usecase/article_ucase.go:33:1,lines=31.0,in_params=2.0,complexity=10.0,complexity/lines=0.3
-    |main app/main.go:33:1,lines=31.0,in_params=0.0,complexity=4.0,complexity/lines=0.1
-    |(*mysqlArticleRepository) fetch ...ository/mysql/mysql_article.go:23:1,lines=29.0,in_params=3.0,complexity=5.0,complexity/lines=0.2
-    |(*ArticleRepository) Fetch domain/mocks/ArticleRepository.go:28:1,lines=18.0,in_params=3.0,complexity=5.0,complexity/lines=0.3
-    |(*ArticleUsecase) Fetch domain/mocks/ArticleUsecase.go:28:1,lines=18.0,in_params=3.0,complexity=5.0,complexity/lines=0.3
-    |(*mysqlArticleRepository) Update ...sitory/mysql/mysql_article.go:162:1,lines=15.0,in_params=2.0,complexity=5.0,complexity/lines=0.3
-    |(*mysqlArticleRepository) Delete ...sitory/mysql/mysql_article.go:137:1,lines=15.0,in_params=2.0,complexity=5.0,complexity/lines=0.3
-    |(*mysqlAuthorRepo) getOne ...tory/mysql/mysql_repository.go:21:1,lines=13.0,in_params=3.0,complexity=2.0,complexity/lines=0.2
-    |(*ArticleHandler) Store ...livery/http/article_handler.go:79:1,lines=13.0,in_params=1.0,complexity=4.0,complexity/lines=0.3
-    |(*mysqlArticleRepository) Store ...sitory/mysql/mysql_article.go:118:1,lines=13.0,in_params=2.0,complexity=4.0,complexity/lines=0.3
-    |getStatusCode ...ivery/http/article_handler.go:118:1,lines=13.0,in_params=1.0,complexity=6.0,complexity/lines=0.5
-    |(*mysqlArticleRepository) Fetch ...ository/mysql/mysql_article.go:63:1,lines=12.0,in_params=3.0,complexity=5.0,complexity/lines=0.4
-    |(*articleUsecase) Fetch article/usecase/article_ucase.go:84:1,lines=12.0,in_params=3.0,complexity=4.0,complexity/lines=0.3
-    |(*mysqlArticleRepository) GetByTitle ...sitory/mysql/mysql_article.go:101:1,lines=11.0,in_params=2.0,complexity=3.0,complexity/lines=0.3
-    |(*ArticleUsecase) GetByTitle domain/mocks/ArticleUsecase.go:79:1,lines=11.0,in_params=2.0,complexity=3.0,complexity/lines=0.3
-    |(*AuthorRepository) GetByID domain/mocks/AuthorRepository.go:14:1,lines=11.0,in_params=2.0,complexity=3.0,complexity/lines=0.3
-    |(*mysqlArticleRepository) GetByID ...ository/mysql/mysql_article.go:83:1,lines=11.0,in_params=2.0,complexity=3.0,complexity/lines=0.3
-    |(*ArticleUsecase) GetByID domain/mocks/ArticleUsecase.go:58:1,lines=11.0,in_params=2.0,complexity=3.0,complexity/lines=0.3
-    |(*articleUsecase) GetByID article/usecase/article_ucase.go:104:1,lines=11.0,in_params=2.0,complexity=3.0,complexity/lines=0.3
-    |(*ArticleRepository) GetByTitle domain/mocks/ArticleRepository.go:79:1,lines=11.0,in_params=2.0,complexity=3.0,complexity/lines=0.3
-    |(*ArticleRepository) GetByID domain/mocks/ArticleRepository.go:58:1,lines=11.0,in_params=2.0,complexity=3.0,complexity/lines=0.3
-    |(*articleUsecase) GetByTitle article/usecase/article_ucase.go:129:1,lines=11.0,in_params=2.0,complexity=3.0,complexity/lines=0.3
-    |(*ArticleHandler) FetchArticle ...livery/http/article_handler.go:36:1,lines=10.0,in_params=1.0,complexity=2.0,complexity/lines=0.2
-    |(*ArticleHandler) GetByID ...livery/http/article_handler.go:52:1,lines=10.0,in_params=1.0,complexity=3.0,complexity/lines=0.3
-    |(*ArticleHandler) Delete ...ivery/http/article_handler.go:101:1,lines=10.0,in_params=1.0,complexity=3.0,complexity/lines=0.3""".stripMargin
+      |main app/main.go:33:1,lines=31.0,in_params=0.0,complexity=4.0,complexity/lines=0.1
+      |(*mysqlArticleRepository) fetch ...ository/mysql/mysql_article.go:23:1,lines=29.0,in_params=3.0,complexity=5.0,complexity/lines=0.2
+      |(*ArticleRepository) Fetch domain/mocks/ArticleRepository.go:28:1,lines=18.0,in_params=3.0,complexity=5.0,complexity/lines=0.3
+      |(*ArticleUsecase) Fetch domain/mocks/ArticleUsecase.go:28:1,lines=18.0,in_params=3.0,complexity=5.0,complexity/lines=0.3
+      |(*mysqlArticleRepository) Update ...sitory/mysql/mysql_article.go:162:1,lines=15.0,in_params=2.0,complexity=5.0,complexity/lines=0.3
+      |(*mysqlArticleRepository) Delete ...sitory/mysql/mysql_article.go:137:1,lines=15.0,in_params=2.0,complexity=5.0,complexity/lines=0.3
+      |(*mysqlAuthorRepo) getOne ...tory/mysql/mysql_repository.go:21:1,lines=13.0,in_params=3.0,complexity=2.0,complexity/lines=0.2
+      |(*ArticleHandler) Store ...livery/http/article_handler.go:79:1,lines=13.0,in_params=1.0,complexity=4.0,complexity/lines=0.3
+      |(*mysqlArticleRepository) Store ...sitory/mysql/mysql_article.go:118:1,lines=13.0,in_params=2.0,complexity=4.0,complexity/lines=0.3
+      |getStatusCode ...ivery/http/article_handler.go:118:1,lines=13.0,in_params=1.0,complexity=6.0,complexity/lines=0.5
+      |(*mysqlArticleRepository) Fetch ...ository/mysql/mysql_article.go:63:1,lines=12.0,in_params=3.0,complexity=5.0,complexity/lines=0.4
+      |(*articleUsecase) Fetch article/usecase/article_ucase.go:84:1,lines=12.0,in_params=3.0,complexity=4.0,complexity/lines=0.3
+      |(*mysqlArticleRepository) GetByTitle ...sitory/mysql/mysql_article.go:101:1,lines=11.0,in_params=2.0,complexity=3.0,complexity/lines=0.3
+      |(*ArticleUsecase) GetByTitle domain/mocks/ArticleUsecase.go:79:1,lines=11.0,in_params=2.0,complexity=3.0,complexity/lines=0.3
+      |(*AuthorRepository) GetByID domain/mocks/AuthorRepository.go:14:1,lines=11.0,in_params=2.0,complexity=3.0,complexity/lines=0.3
+      |(*mysqlArticleRepository) GetByID ...ository/mysql/mysql_article.go:83:1,lines=11.0,in_params=2.0,complexity=3.0,complexity/lines=0.3
+      |(*ArticleUsecase) GetByID domain/mocks/ArticleUsecase.go:58:1,lines=11.0,in_params=2.0,complexity=3.0,complexity/lines=0.3
+      |(*articleUsecase) GetByID article/usecase/article_ucase.go:104:1,lines=11.0,in_params=2.0,complexity=3.0,complexity/lines=0.3
+      |(*ArticleRepository) GetByTitle domain/mocks/ArticleRepository.go:79:1,lines=11.0,in_params=2.0,complexity=3.0,complexity/lines=0.3
+      |(*ArticleRepository) GetByID domain/mocks/ArticleRepository.go:58:1,lines=11.0,in_params=2.0,complexity=3.0,complexity/lines=0.3
+      |(*articleUsecase) GetByTitle article/usecase/article_ucase.go:129:1,lines=11.0,in_params=2.0,complexity=3.0,complexity/lines=0.3
+      |(*ArticleHandler) FetchArticle ...livery/http/article_handler.go:36:1,lines=10.0,in_params=1.0,complexity=2.0,complexity/lines=0.2
+      |(*ArticleHandler) GetByID ...livery/http/article_handler.go:52:1,lines=10.0,in_params=1.0,complexity=3.0,complexity/lines=0.3
+      |(*ArticleHandler) Delete ...ivery/http/article_handler.go:101:1,lines=10.0,in_params=1.0,complexity=3.0,complexity/lines=0.3""".stripMargin
 
   parseFunctionMetrics(lines).foreach(println)
-  case class FuncMetric(name: String, abbrPath: String, lines: Int, params: Int, complexity: Int, complexityRate: Double)
+
+  case class FuncMetric(name: String, abbrPath: String, fullPath: String, lines: Int, params: Int, complexity: Int, complexityRate: Double)
+
+  object FuncMetric {
+    def apply(name: String, abbrPath: String, lines: Int, params: Int, complexity: Int, complexityRate: Double): FuncMetric = new FuncMetric(name, abbrPath, abbrPath, lines, params, complexity, complexityRate)
+  }
 
   private def toFunctionMetrics: String => List[FuncMetric] = line => {
     val vars = line.split(",")

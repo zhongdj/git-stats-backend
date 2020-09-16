@@ -3,6 +3,8 @@ package net.imadz.git.stats.services
 import java.io.File
 
 import akka.actor.ActorRef
+import akka.pattern.ask
+import akka.util.Timeout
 import com.google.inject.Inject
 import net.imadz.git.stats.common.shell._
 import net.imadz.git.stats.workers.FileIndexActor.AddFile
@@ -10,12 +12,10 @@ import net.imadz.git.stats.{AppError, ShellCommandExecError}
 import play.api.db.slick.{DatabaseConfigProvider, HasDatabaseConfigProvider}
 import slick.jdbc.JdbcProfile
 
-import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.sys.process._
-import akka.pattern.ask
-import akka.util.Timeout
 
 
 case class CommitOnFile(id: String, file: String, developer: String, date: String, message: String)
@@ -24,22 +24,32 @@ case class TaggedCommit(tag: String, commit: CommitOnFile)
 
 class TaggedCommitStatsService @Inject()(protected val dbConfigProvider: DatabaseConfigProvider)(implicit ec: ExecutionContext)
   extends Traversal with Constants with HasDatabaseConfigProvider[JdbcProfile] with Tagged {
+  implicit val timeout: Timeout = Timeout(5 seconds)
 
   def exec(fileIndex: ActorRef, dir: String, profile: Option[String], excludes: List[String]): Either[AppError, Future[String]] = {
-    implicit val timeout: Timeout = Timeout(5 seconds)
     val files: Either[AppError, List[String]] = lsTreeObjects(dir, excludes)
     val commits: Either[AppError, List[CommitOnFile]] = files.flatMap(fs => sequence(fs.map(readCommits(dir)))).map(_.flatten)
     commits.map { cs =>
-      val eventualSavedCommits = for {
-        _ <- Future.sequence(cs.map(commit => fileIndex ? AddFile(commit.file)))
-        x <- batchInsertOrUpdate(dir)(cs)
-      } yield x
-      val eventualTaggedCommits = Future.successful(taggingCommits(profile, cs)).flatMap(batchInsertOrUpdateTaggedCommit(dir))
       for {
-        _ <- eventualSavedCommits
-        taggedCommits <- eventualTaggedCommits
+        _ <- indexing(fileIndex, cs) zip batchInsertOrUpdate(dir)(cs)
+        taggedCommits <- tagging(dir, profile, cs)
       } yield taggedCommits.mkString(",")
     }
+  }
+
+  private def tagging(dir: String, profile: Option[String], cs: List[CommitOnFile]): Future[List[TaggedCommit]] = {
+    Future.successful(taggingCommits(profile, cs)).flatMap(batchInsertOrUpdateTaggedCommit(dir))
+  }
+
+  private def indexing(fileIndex: ActorRef, cs: List[CommitOnFile]) = {
+    Future.sequence(cs.map(commit => fileIndex ? AddFile(refineCommitFilePath(commit))))
+  }
+
+  private def refineCommitFilePath(commit: CommitOnFile): String = {
+    if (commit.file.startsWith("/"))
+      commit.file
+    else
+      "/" + commit.file
   }
 
   private def taggingCommits(profile: Option[String], cs: List[CommitOnFile]) = {

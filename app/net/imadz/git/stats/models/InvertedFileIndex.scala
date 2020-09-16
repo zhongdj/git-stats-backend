@@ -114,9 +114,22 @@ case class InvertedFileIndex(projectRootPath: String) {
     this
   }
 
+  def singleIncompleteFile(abbrFilePath: String): Boolean = {
+    abbrFilePath.indexOf(java.io.File.separator) == -1 && abbrFilePath.startsWith(".")
+  }
+
+  def suffix(abbrFilePath: String): String = abbrFilePath.replaceAll("""^.+""", "")
+
+  def fullScan(abbrFilePath: String): Option[File] = fileIndex.find(_._1 endsWith suffix(abbrFilePath)).map(_._2.head.label())
+
+  def search(abbrFilePath: String): Option[File] =
+    if (singleIncompleteFile(abbrFilePath)) fullScan(abbrFilePath)
+    else indexedSearch(abbrFilePath)
+
   val pattern = """\.*(.*)""".r
 
-  def search(abbrFilePath: String): Option[File] = {
+  private def indexedSearch(abbrFilePath: String) = {
+
     abbrFilePath.split(java.io.File.separator).filter(_.nonEmpty).toList.reverse match {
       case Nil => None
       case fileName :: Nil =>
@@ -129,6 +142,7 @@ case class InvertedFileIndex(projectRootPath: String) {
         case xs  => matchDirectories(dirs, xs)
       }
     }
+
   }
 
   def matchDirectories(dirs: List[Directory], xs: List[Node[File]]): Option[File] = xs match {

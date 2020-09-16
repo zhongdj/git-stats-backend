@@ -17,7 +17,8 @@ class FunctionMetricsRepository @Inject() (protected val dbConfigProvider: Datab
 
   import dbConfig.profile.api._
 
-  def toRow(taskId: Int, taskItemId: Int, projectRoot: String, day: Date): FuncMetric => FuncMetricRow = fm => FuncMetricRow(0, taskId, taskItemId, day, fm.name, fm.abbrPath, projectRoot, fm.abbrPath, fm.lines, fm.params, fm.complexity, fm.complexityRate.toFloat)
+  def toRow(taskId: Int, taskItemId: Int, projectRoot: String, day: Date): FuncMetric => FuncMetricRow =
+    fm => FuncMetricRow(0, taskId, taskItemId, day, fm.name, fm.abbrPath, projectRoot, fm.fullPath, fm.lines, fm.params, fm.complexity, fm.complexityRate.toFloat)
 
   def save(taskId: Int, taskItemId: Int, projectRoot: String, now: Date, metrics: List[FuncMetric]): Future[List[Int]] = {
     val q = Tables.FuncMetric.returning(Tables.FuncMetric.map(_.id))

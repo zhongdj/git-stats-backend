@@ -9,11 +9,13 @@ class FileIndexActor(rootPath: String) extends Actor {
 
   override def receive: Receive = {
     case AddFile(fullFilePath) =>
+      println(s"add file: $fullFilePath")
       fileIndex = fileIndex + fullFilePath
       context.sender() ! Done
     case SearchFile(matchingFilePath) =>
+      println(s"search file: $matchingFilePath")
       context.sender() ! fileIndex.search(matchingFilePath)
-        .map(file => Found(file.getName))
+        .map(file => Found(file.getAbsolutePath))
         .getOrElse(NotFound)
   }
 }
