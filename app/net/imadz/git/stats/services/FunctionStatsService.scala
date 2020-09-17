@@ -19,15 +19,15 @@ import akka.util.Timeout
 
 import scala.concurrent.duration._
 
-case class FunctionStatsService @Inject() (repository: FunctionMetricsRepository) {
+case class FunctionStatsService @Inject() (repository: FunctionMetricsRepository, deltaService: CalculateFuncMetricDeltaService) {
 
-  def map(lines: String): List[FuncMetric] = {
+  private def map(lines: String): List[FuncMetric] = {
     val r = parseFunctionMetrics(lines)
     println("function metrics size: " + r.size)
     r
   }
 
-  def findFilePath(fileIndex: ActorRef): FuncMetric => Future[FuncMetric] = metric => {
+  private def findFilePath(fileIndex: ActorRef): FuncMetric => Future[FuncMetric] = metric => {
     implicit val timeout: Timeout = Timeout(5 seconds)
     val head = metric.abbrPath.split(":").head
     println(s"processing abbr path: ${metric.abbrPath} to $head")
@@ -37,11 +37,11 @@ case class FunctionStatsService @Inject() (repository: FunctionMetricsRepository
     }
   }
 
-  def refineMetrics(fileIndex: ActorRef, funcMetrics: List[FuncMetric]): Future[List[FuncMetric]] = Future.sequence(
+  private def refineMetrics(fileIndex: ActorRef, funcMetrics: List[FuncMetric]): Future[List[FuncMetric]] = Future.sequence(
     funcMetrics.map(findFilePath(fileIndex))
   )
 
-  def save(fileIndex: ActorRef, taskId: Int, taskItemId: Int, projectRoot: String, theDay: Date, funcMetrics: List[FuncMetric]): Future[List[Int]] =
+  private def save(fileIndex: ActorRef, taskId: Int, taskItemId: Int, projectRoot: String, theDay: Date, funcMetrics: List[FuncMetric]): Future[List[Int]] =
     for {
       refinedFuncMetrics <- refineMetrics(fileIndex, funcMetrics)
       ids <- repository.save(taskId, taskItemId, projectRoot, theDay, refinedFuncMetrics)
@@ -52,12 +52,14 @@ case class FunctionStatsService @Inject() (repository: FunctionMetricsRepository
     println(s"taskId = $taskId, taskItemId = $taskItemId, projectPath = $projectPath theDay = $theDay, commitId = $commitId")
     val str = scanFunctions(projectPath, commitId, excludes)
     println(str)
-    exeSave(fileIndex, taskId, taskItemId, projectPath, theDay, str).recover {
+    val r = exeSave(fileIndex, taskId, taskItemId, projectPath, theDay, str).recover {
       case e: Throwable =>
         println("funcs save failed")
         e.printStackTrace()
         str + "\n" + e.getMessage
     }
+    r.onComplete(_ => deltaService.exec(taskId, taskItemId))
+    r
   }
 
   private def exeSave(fileIndex: ActorRef, taskId: Int, taskItemId: Int, projectPath: String, theDay: Date, str: String) = {

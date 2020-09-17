@@ -33,7 +33,14 @@ object GolangFuncsParser extends App {
   case class FuncMetric(name: String, abbrPath: String, fullPath: String, lines: Int, params: Int, complexity: Int, complexityRate: Double)
 
   object FuncMetric {
-    def apply(name: String, abbrPath: String, lines: Int, params: Int, complexity: Int, complexityRate: Double): FuncMetric = new FuncMetric(name, abbrPath, abbrPath, lines, params, complexity, complexityRate)
+
+    def removeLineColumn(abbrPath: String): String = {
+      val sep = abbrPath.indexOf(":")
+      if (sep < 0) abbrPath
+      else abbrPath.substring(0, sep)
+    }
+
+    def apply(name: String, abbrPath: String, lines: Int, params: Int, complexity: Int, complexityRate: Double): FuncMetric = new FuncMetric(name, abbrPath, removeLineColumn(abbrPath), lines, params, complexity, complexityRate)
   }
 
   private def toFunctionMetrics: String => List[FuncMetric] = line => {

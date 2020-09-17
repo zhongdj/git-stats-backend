@@ -25,6 +25,7 @@ class HomeController @Inject() (
     ws: WSClient,
     clone: CloneRepositoryService, stat: ProductivityStatsService,
     functionStat: FunctionStatsService,
+    deltaService: CalculateFuncMetricDeltaService,
     create: CreateTaskService,
     metabaseInit: InitializationService,
     addDataSource: AddStatsDataSource,
@@ -66,7 +67,6 @@ class HomeController @Inject() (
         rows.mkString(",")
       })
       .fold(_.message, r => r)
-
     )
   }
 
@@ -79,6 +79,11 @@ class HomeController @Inject() (
         e => Future.successful(BadRequest(e.mkString(","))),
         eventuateResp => eventuateResp.map(r => Ok(Json.toJson(r)))
       )
+  }
+
+  def delta(taskId: Int, taskItemId: Int): Action[AnyContent] = Action.async { implicit request: Request[AnyContent] =>
+    deltaService.exec(taskId, taskItemId)
+      .map(_ => Ok("completed"))
   }
 
 }
