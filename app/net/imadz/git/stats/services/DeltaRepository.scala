@@ -4,6 +4,7 @@ import java.sql.Date
 
 import com.google.inject.Inject
 import net.imadz.git.stats
+import net.imadz.git.stats.models.Tables
 import net.imadz.git.stats.models.Tables.{ FuncMetric => TFuncMetric, _ }
 import net.imadz.git.stats.services.GolangFuncsParser.FuncMetric
 import play.api.db.slick.{ DatabaseConfigProvider, HasDatabaseConfigProvider }
@@ -28,7 +29,22 @@ case class DeltaRepository @Inject() (protected val dbConfigProvider: DatabaseCo
       .map(_.map(toFunctionMetric).toList.groupBy(_.day))
   }
 
-  def minDate(taskId: Int, taskItemId: Int): Future[Date] = {
+  def deltaMaxDay(taskId: Int, taskItemId: Int): Future[Option[Date]] = {
+    val q = Tables.FuncMetricDelta
+      .filter(_.taskId === taskId)
+      .filter(_.taskItemId === taskItemId)
+      .map(_.day)
+      .max
+
+    dbConfig.db.run(q.result)
+  }
+
+  def minDate(taskId: Int, taskItemId: Int): Future[Date] = for {
+    finishDayOpt <- deltaMaxDay(taskId, taskItemId)
+    funcStartDay <- funcMetricDayMin(taskId, taskItemId)
+  } yield finishDayOpt.getOrElse(funcStartDay)
+
+  private def funcMetricDayMin(taskId: Int, taskItemId: Int) = {
     val q = dayOfTaskItem(taskId, taskItemId)
       .min
       .result
@@ -44,7 +60,6 @@ case class DeltaRepository @Inject() (protected val dbConfigProvider: DatabaseCo
 
     dbConfig.db.run(q)
       .map(_.getOrElse(now))
-
   }
 
   private def now = {

@@ -16,7 +16,7 @@ import scala.concurrent.{ ExecutionContext, Future }
 import scala.language.postfixOps
 
 class CreateTaskService @Inject() (protected val dbConfigProvider: DatabaseConfigProvider, actorSystem: ActorSystem, ws: WSClient,
-    clone: CloneRepositoryService, stats: ProductivityStatsService, funcStats: FunctionStatsService, taggedCommit: TaggedCommitStatsService, graphRepository: GraphRepository)(implicit ec: ExecutionContext)
+    clone: CloneRepositoryService, stats: ProductivityStatsService, funcStats: FunctionStatsService, deltaService: CalculateFuncMetricDeltaService, taggedCommit: TaggedCommitStatsService, graphRepository: GraphRepository)(implicit ec: ExecutionContext)
   extends Constants
   with HasDatabaseConfigProvider[JdbcProfile]
   with MD5 {
@@ -60,7 +60,7 @@ class CreateTaskService @Inject() (protected val dbConfigProvider: DatabaseConfi
 
   private def instantiateMaster(repositories: List[GitRepository], startDate: String, endDate: String, id: Int, taskItemRows: List[TaskItemRow]) = {
     val taskItemKeys = taskItemRows.groupBy(_.repositoryUrl).mapValues(_.head.id)
-    actorSystem.actorOf(GitRepositoryUpdateJobMaster.props(id, CreateTaskReq(repositories, startDate, Some(endDate)), taskItemKeys, clone, stats, funcStats, taggedCommit, graphRepository, ws, dbConfigProvider), id.toString)
+    actorSystem.actorOf(GitRepositoryUpdateJobMaster.props(id, CreateTaskReq(repositories, startDate, Some(endDate)), taskItemKeys, clone, stats, funcStats, deltaService, taggedCommit, graphRepository, ws, dbConfigProvider), id.toString)
   }
 
   private def fingerPrintOf(repositories: List[GitRepository]) = {

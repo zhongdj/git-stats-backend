@@ -21,6 +21,7 @@ case class GitRepositoryUpdateJobWorker(taskId: Int, taskItemId: Int, repo: serv
     cloneService: CloneRepositoryService,
     productivityStatsService: ProductivityStatsService,
     functionStatsService: FunctionStatsService,
+    deltaService: CalculateFuncMetricDeltaService,
     taggedCommitStatsService: TaggedCommitStatsService,
     graphRepository: GraphRepository,
     ws: WSClient,
@@ -53,12 +54,15 @@ case class GitRepositoryUpdateJobWorker(taskId: Int, taskItemId: Int, repo: serv
         }
   }
 
+  def processDeltaCyclomaticAnalysis: Future[Unit] = deltaService.exec(taskId, taskItemId)
+
   private def analysis: Either[AppError, Future[String]] = {
     productivityMetric.map { productivityMetrics =>
       for {
         s1 <- productivityMetrics
         s2 <- tagCommits
         s3 <- processCyclomaticAnalysis
+        _ <- processDeltaCyclomaticAnalysis
         s4 <- generateGraph
       } yield s"$s1 \n $s2 \n $s3 \n $s4"
     }
@@ -102,6 +106,16 @@ case class GitRepositoryUpdateJobWorker(taskId: Int, taskItemId: Int, repo: serv
     dbConfig.db.run(q)
   }
 
+  def maxFuncMetricDay(taskId: Int, taskItemId: Int): Future[Option[Date]] = {
+    val q = (for {
+      metric <- Tables.FuncMetric
+      if metric.taskId === taskId
+      if metric.taskItemId === taskItemId
+      day = metric.day
+    } yield day)
+    dbConfig.db.run(q.max.result)
+  }
+
   private def align(projectRoot: String, branch: String): Future[String] = Future.successful {
     println(s"align: $projectRoot/$branch")
     s"/opt/docker/git-replay.sh $projectRoot $branch" !!
@@ -110,9 +124,11 @@ case class GitRepositoryUpdateJobWorker(taskId: Int, taskItemId: Int, repo: serv
   private def processCyclomaticAnalysis = {
     for {
       dayCommits <- eventualDays()
+      maxDay <- maxFuncMetricDay(taskId, taskItemId)
+      days = maxDay.map(theDay => dayCommits.takeWhile(dc => dc._1.equals(theDay) || dc._1.after(theDay))).getOrElse(dayCommits)
       _ <- align(projectPath(taskId, repo.repositoryUrl), repo.branch)
-      _ = dayCommits.foreach(println)
-      f = dayCommits.map(dc => functionMetric(dc._1, dc._2))
+      _ = days.foreach(println)
+      f = days.map(dc => functionMetric(dc._1, dc._2))
         .foldLeft[Future[String] => Future[String]](itself)((g, f) => g.compose(f))
       message <- f(Future.successful(""))
     } yield message
@@ -172,11 +188,12 @@ object GitRepositoryUpdateJobWorker {
     clone: CloneRepositoryService,
     stat: ProductivityStatsService,
     funcStats: FunctionStatsService,
+    deltaService: CalculateFuncMetricDeltaService,
     taggedCommit: TaggedCommitStatsService,
     graphRepository: GraphRepository,
     ws: WSClient,
     dbConfigProvider: DatabaseConfigProvider,
     fromDay: String, toDay: String)(implicit ec: ExecutionContext): Props =
-    Props(new GitRepositoryUpdateJobWorker(taskId, taskItemId, r, clone, stat, funcStats, taggedCommit, graphRepository, ws, dbConfigProvider, fromDay, toDay))
+    Props(new GitRepositoryUpdateJobWorker(taskId, taskItemId, r, clone, stat, funcStats, deltaService, taggedCommit, graphRepository, ws, dbConfigProvider, fromDay, toDay))
 
 }

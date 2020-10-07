@@ -19,7 +19,7 @@ import akka.util.Timeout
 
 import scala.concurrent.duration._
 
-case class FunctionStatsService @Inject() (repository: FunctionMetricsRepository, deltaService: CalculateFuncMetricDeltaService) {
+case class FunctionStatsService @Inject() (repository: FunctionMetricsRepository) {
 
   private def map(lines: String): List[FuncMetric] = {
     val r = parseFunctionMetrics(lines)
@@ -52,14 +52,12 @@ case class FunctionStatsService @Inject() (repository: FunctionMetricsRepository
     println(s"taskId = $taskId, taskItemId = $taskItemId, projectPath = $projectPath theDay = $theDay, commitId = $commitId")
     val str = scanFunctions(projectPath, commitId, excludes)
     println(str)
-    val r = exeSave(fileIndex, taskId, taskItemId, projectPath, theDay, str).recover {
+    exeSave(fileIndex, taskId, taskItemId, projectPath, theDay, str).recover {
       case e: Throwable =>
         println("funcs save failed")
         e.printStackTrace()
         str + "\n" + e.getMessage
     }
-    r.onComplete(_ => deltaService.exec(taskId, taskItemId))
-    r
   }
 
   private def exeSave(fileIndex: ActorRef, taskId: Int, taskItemId: Int, projectPath: String, theDay: Date, str: String) = {
