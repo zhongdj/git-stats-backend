@@ -24,8 +24,8 @@ lazy val root = (project in file("."))
       "com.typesafe.slick" %% "slick" % "3.2.1",
       "com.typesafe.slick" %% "slick-hikaricp" % "3.2.1",
       "com.typesafe.slick" %% "slick-codegen" % "3.2.1",
+      "dev.zio" %% "zio" % "1.0.7",
       "mysql" % "mysql-connector-java" % "5.1.34"
-
     ),
     // Adds additional packages into Twirl
     //TwirlKeys.templateImports += "net.imadz.controllers._"
