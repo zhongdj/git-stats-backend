@@ -55,7 +55,7 @@ class GitRepositoryUpdateJobMaster(taskId: Int, taskItemRows: Map[String, Int], 
       val workerRef = createWorker(headRepo)
       workers += workerRef
       workerRef ! Update
-      context.setReceiveTimeout(10 seconds)
+      context.setReceiveTimeout(req.interval.getOrElse(10) seconds)
     case ReceiveTimeout =>
       println(s"creating workers: ${creatingRepos.length} left. ")
       if (creatingRepos.isEmpty) {

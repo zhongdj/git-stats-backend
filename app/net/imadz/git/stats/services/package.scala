@@ -9,7 +9,7 @@ package object services {
     implicit val formats = Json.format[GitRepository]
   }
 
-  case class CreateTaskReq(repositories: List[GitRepository], fromDay: String, toDay: Option[String])
+  case class CreateTaskReq(repositories: List[GitRepository], fromDay: String, toDay: Option[String], interval: Option[Int])
 
   object CreateTaskReq {
     implicit val formats = Json.format[CreateTaskReq]
