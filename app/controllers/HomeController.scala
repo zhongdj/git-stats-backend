@@ -74,7 +74,7 @@ class HomeController @Inject() (
 
   def createTask() = Action.async(parse.json) { request =>
     request.body.validate[CreateTaskReq]
-      .map(req => create.exec(req.repositories, req.fromDay, req.toDay.getOrElse(today)))
+      .map(req => create.exec(req.repositories, req.fromDay, req.toDay.getOrElse(today), req.interval))
       .fold(
         e => Future.successful(BadRequest(e.mkString(","))),
         eventuateResp => eventuateResp.map(r => Ok(Json.toJson(r)))

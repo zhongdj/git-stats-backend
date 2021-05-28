@@ -23,7 +23,7 @@ class CreateTaskService @Inject() (protected val dbConfigProvider: DatabaseConfi
 
   import dbConfig.profile.api._
 
-  def exec(repositories: List[GitRepository], startDate: String, endDate: String): Future[CreateTaskResp] = {
+  def exec(repositories: List[GitRepository], startDate: String, endDate: String, interval: Option[Int]): Future[CreateTaskResp] = {
     dbConfig.db.run(
       Task.filter(_.fingerPrint === fingerPrintOf(repositories))
         .result
@@ -36,7 +36,7 @@ class CreateTaskService @Inject() (protected val dbConfigProvider: DatabaseConfi
     ).flatMap(_.getOrElse(createTask(repositories, startDate, endDate)))
       .flatMap {
         case (id: Int, taskItemRows: List[TaskItemRow]) =>
-          createMaster(repositories, startDate, endDate, id, taskItemRows)
+          createMaster(repositories, startDate, endDate, id, taskItemRows, interval)
             .map(_ ! Update)
             .map(_ => id)
       }
@@ -50,17 +50,17 @@ class CreateTaskService @Inject() (protected val dbConfigProvider: DatabaseConfi
 
   import scala.concurrent.duration._
 
-  private def createMaster(repositories: List[GitRepository], startDate: String, endDate: String, id: Int, taskItemRows: List[TaskItemRow]) = {
+  private def createMaster(repositories: List[GitRepository], startDate: String, endDate: String, id: Int, taskItemRows: List[TaskItemRow], intervalOp: Option[Int]) = {
     implicit val duration: Timeout = Timeout(5 seconds)
     (actorSystem.actorSelection("akka://application/user/" + id.toString) ? Identify(1L))
       .mapTo[ActorIdentity]
       .map(identity => identity.getActorRef.get())
-      .recover { case _ => instantiateMaster(repositories, startDate, endDate, id, taskItemRows) }
+      .recover { case _ => instantiateMaster(repositories, startDate, endDate, id, taskItemRows, intervalOp) }
   }
 
-  private def instantiateMaster(repositories: List[GitRepository], startDate: String, endDate: String, id: Int, taskItemRows: List[TaskItemRow]) = {
+  private def instantiateMaster(repositories: List[GitRepository], startDate: String, endDate: String, id: Int, taskItemRows: List[TaskItemRow], intervalOp: Option[Int]) = {
     val taskItemKeys = taskItemRows.groupBy(_.repositoryUrl).mapValues(_.head.id)
-    actorSystem.actorOf(GitRepositoryUpdateJobMaster.props(id, CreateTaskReq(repositories, startDate, Some(endDate)), taskItemKeys, clone, stats, funcStats, deltaService, taggedCommit, graphRepository, ws, dbConfigProvider), id.toString)
+    actorSystem.actorOf(GitRepositoryUpdateJobMaster.props(id, CreateTaskReq(repositories, startDate, Some(endDate), intervalOp), taskItemKeys, clone, stats, funcStats, deltaService, taggedCommit, graphRepository, ws, dbConfigProvider), id.toString)
   }
 
   private def fingerPrintOf(repositories: List[GitRepository]) = {
