@@ -1,10 +1,10 @@
 package net.imadz.git.stats.services
 
 import java.time.LocalDate.parse
-
 import net.imadz.git.stats.{ AppError, ShellCommandExecError }
 import org.joda.time.{ DateTime, Days }
 
+import java.util.Date
 import scala.language.postfixOps
 import scala.sys.process._
 
@@ -25,9 +25,21 @@ class ProductivityStatsService extends Constants {
 
   private def range(fromStr: String, toStr: String) = {
 
+    def secureParse(defaultDate: Date)(dateStr: String) = {
+      try {
+        val v = formatter.parse(dateStr)
+        if (v.before(defaultDate)) defaultDate
+        else v
+      } catch {
+        case e: Throwable =>
+          println(s"==== dateStr is invalid: ${dateStr}")
+          defaultDate
+      }
+    }
+
     val toLocalDate = parse(toStr)
-    val from = formatter.parse(fromStr)
-    val to = formatter.parse(toStr)
+    val from = secureParse(new Date(2020, 1, 1))(fromStr)
+    val to = secureParse(new Date)(toStr)
     val days = Days.daysBetween(new DateTime(from.getTime), new DateTime(to.getTime)).getDays()
     println(fromStr, toStr, from, to, days)
 
@@ -56,7 +68,7 @@ class ProductivityStatsService extends Constants {
 
 }
 
-object De extends App {
+object De extends App with Constants {
   def stat(date: String, p: String, excludes: List[String]): Either[String, String] = {
     try {
       Right(
@@ -70,11 +82,16 @@ object De extends App {
     }
   }
 
-  println(stat("2019-10-14", "/Users/zhongdejian/Workspaces/kunlun/metadata", List("""":(exclude)*thrift*"""", """":(exclude)*client*"""")).right)
+  //  println(stat("2019-10-14", "/Users/zhongdejian/Workspaces/kunlun/metadata", List("""":(exclude)*thrift*"""", """":(exclude)*client*"""")).right)
   /*
 
   git --git-dir=/Users/zhongdejian/Workspaces/kunlun/metadata/.git --work-tree=/Users/zhongdejian/Workspaces/kunlun/metadata log --before='2019-10-15' --after='2018-10-14' --shortstat --pretty=%cE -- . ":(exclude)*thrift*"
   git --git-dir=/Users/zhongdejian/Workspaces/kunlun/metadata/.git --work-tree=/Users/zhongdejian/Workspaces/kunlun/metadata log --before='2019-10-15' --after='2018-10-14' --shortstat --pretty=%cE -- . ":\!*thrift*"
 
    */
+  try {
+    formatter.parse("")
+  } catch {
+    case _ => println("just break")
+  }
 }
