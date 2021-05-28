@@ -2,6 +2,8 @@ package net.imadz.git.stats.models
 
 import net.imadz.git.stats.models.InvertedFileIndex._
 
+import scala.util.matching.Regex
+
 sealed trait Node[T] {
 
   def parent(): Option[Node[T]]
@@ -99,7 +101,7 @@ case class InvertedFileIndex(projectRootPath: String) {
   var fileTree: Node[File] = Root(new java.io.File(projectRootPath), Nil)
   var fileIndex: Map[String, List[Node[File]]] = Map.empty.withDefaultValue(Nil)
 
-  def rootedWith(file: Path) = file.startsWith(projectRootPath)
+  def rootedWith(file: Path): Boolean = file.startsWith(projectRootPath)
 
   def +(filePath: Path): InvertedFileIndex = {
     if (rootedWith(filePath)) {
@@ -126,7 +128,7 @@ case class InvertedFileIndex(projectRootPath: String) {
     if (singleIncompleteFile(abbrFilePath)) fullScan(abbrFilePath)
     else indexedSearch(abbrFilePath)
 
-  val pattern = """\.*(.*)""".r
+  val pattern: Regex = """\.*(.*)""".r
 
   private def indexedSearch(abbrFilePath: String) = {
 

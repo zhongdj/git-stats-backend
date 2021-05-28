@@ -3,7 +3,7 @@ package net.imadz.git.stats.workers
 import akka.actor.SupervisorStrategy.Restart
 import akka.actor.{ Actor, ActorRef, OneForOneStrategy, Props, ReceiveTimeout, SupervisorStrategy, Terminated }
 import net.imadz.git.stats.services._
-import net.imadz.git.stats.workers.GitRepositoryUpdateJobMaster.{ Done, Progress, Update }
+import net.imadz.git.stats.workers.GitRepositoryUpdateJobMaster.{ Done, InitializeWorkers, Progress, Update }
 import net.imadz.git.stats.{ AppError, MD5 }
 import play.api.db.slick.{ DatabaseConfigProvider, HasDatabaseConfigProvider }
 import play.api.libs.ws.WSClient
@@ -28,11 +28,7 @@ class GitRepositoryUpdateJobMaster(taskId: Int, taskItemRows: Map[String, Int], 
 
   var idleRounds = 0
 
-  private var workers: Set[ActorRef] = createWorkers
-
-  private def createWorkers = {
-    req.repositories.map(createWorker).toSet
-  }
+  private var workers: Set[ActorRef] = Set.empty
 
   private def createWorker: GitRepository => ActorRef = r => {
     val worker = context.actorOf(GitRepositoryUpdateJobWorker.props(taskId, taskItemRows(r.repositoryUrl), r, clone, stat, funcStats, deltaService, taggedCommit, graphRepository, ws, dbConfigProvider, req.fromDay, req.toDay.get), workerName(r))
@@ -46,11 +42,27 @@ class GitRepositoryUpdateJobMaster(taskId: Int, taskItemRows: Map[String, Int], 
 
   def idle: Receive = {
     case Update =>
-      context.become(updating)
-      workers.foreach(_ ! Update)
+      context.become(creatingWorkers.orElse(updating))
+      self ! InitializeWorkers(req.repositories)
     case ReceiveTimeout =>
-      workers = createWorkers
       self ! Update
+  }
+
+  private var creatingRepos: List[GitRepository] = Nil
+  def creatingWorkers: Receive = {
+    case InitializeWorkers(headRepo :: tail) =>
+      creatingRepos = tail
+      val workerRef = createWorker(headRepo)
+      workers += workerRef
+      workerRef ! Update
+      context.setReceiveTimeout(10 seconds)
+    case ReceiveTimeout =>
+      println(s"creating workers: ${creatingRepos.length} left. ")
+      if (creatingRepos.isEmpty) {
+        context.setReceiveTimeout(Duration.Undefined)
+        context.become(updating)
+      } else
+        self ! InitializeWorkers(creatingRepos)
   }
 
   def updating: Receive = {
@@ -95,6 +107,8 @@ object GitRepositoryUpdateJobMaster {
   trait Cmd
 
   object Update extends Cmd
+
+  case class InitializeWorkers(repos: List[GitRepository]) extends Cmd
 
   case class CyclomaticComplexityAnalysis(lastMessage: String) extends Cmd
 
